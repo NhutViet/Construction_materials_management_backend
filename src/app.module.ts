@@ -6,11 +6,13 @@ import { databaseConfig } from './config/database.config';
 import { Material, MaterialSchema } from './models/material.model';
 import { MaterialService } from './services/material.service';
 import { MaterialController } from './controllers/material.controller';
+import { AuthModule } from './modules/auth.module';
 
 @Module({
   imports: [
     MongooseModule.forRoot(databaseConfig.uri!),
     MongooseModule.forFeature([{ name: Material.name, schema: MaterialSchema }]),
+    AuthModule,
   ],
   controllers: [AppController, MaterialController],
   providers: [AppService, MaterialService],
@@ -19,7 +21,10 @@ export class AppModule implements OnModuleInit {
   onModuleInit() {
     console.log('🚀 Construction Materials Management Backend đã khởi động!');
     console.log('📝 API Endpoints:');
-    console.log('   • GET    / - Main app');
+    console.log('🔐 Authentication:');
+    console.log('   • POST   /auth/register - Đăng ký tài khoản mới (username, password, fullname)');
+    console.log('   • POST   /auth/login - Đăng nhập (username, password)');
+    console.log('📦 Materials:');
     console.log('   • POST   /materials - Tạo vật liệu mới');
     console.log('   • GET    /materials - Lấy danh sách vật liệu');
     console.log('   • GET    /materials/:id - Lấy vật liệu theo ID');

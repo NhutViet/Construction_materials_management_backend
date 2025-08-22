@@ -15,11 +15,15 @@ const database_config_1 = require("./config/database.config");
 const material_model_1 = require("./models/material.model");
 const material_service_1 = require("./services/material.service");
 const material_controller_1 = require("./controllers/material.controller");
+const auth_module_1 = require("./modules/auth.module");
 let AppModule = class AppModule {
     onModuleInit() {
         console.log('🚀 Construction Materials Management Backend đã khởi động!');
         console.log('📝 API Endpoints:');
-        console.log('   • GET    / - Main app');
+        console.log('🔐 Authentication:');
+        console.log('   • POST   /auth/register - Đăng ký tài khoản mới (username, password, fullname)');
+        console.log('   • POST   /auth/login - Đăng nhập (username, password)');
+        console.log('📦 Materials:');
         console.log('   • POST   /materials - Tạo vật liệu mới');
         console.log('   • GET    /materials - Lấy danh sách vật liệu');
         console.log('   • GET    /materials/:id - Lấy vật liệu theo ID');
@@ -38,6 +42,7 @@ exports.AppModule = AppModule = __decorate([
         imports: [
             mongoose_1.MongooseModule.forRoot(database_config_1.databaseConfig.uri),
             mongoose_1.MongooseModule.forFeature([{ name: material_model_1.Material.name, schema: material_model_1.MaterialSchema }]),
+            auth_module_1.AuthModule,
         ],
         controllers: [app_controller_1.AppController, material_controller_1.MaterialController],
         providers: [app_service_1.AppService, material_service_1.MaterialService],
