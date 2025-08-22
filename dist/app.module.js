@@ -16,6 +16,7 @@ const material_model_1 = require("./models/material.model");
 const material_service_1 = require("./services/material.service");
 const material_controller_1 = require("./controllers/material.controller");
 const auth_module_1 = require("./modules/auth.module");
+const invoice_module_1 = require("./modules/invoice.module");
 let AppModule = class AppModule {
     onModuleInit() {
         console.log('🚀 Construction Materials Management Backend đã khởi động!');
@@ -31,6 +32,20 @@ let AppModule = class AppModule {
         console.log('   • DELETE /materials/:id - Xóa vật liệu');
         console.log('   • GET    /materials/low-stock - Vật liệu sắp hết');
         console.log('   • GET    /materials/category/:category - Vật liệu theo danh mục');
+        console.log('🧾 Invoices:');
+        console.log('   • POST   /invoices - Tạo hoá đơn mới');
+        console.log('   • GET    /invoices - Lấy danh sách hoá đơn');
+        console.log('   • GET    /invoices/:id - Lấy hoá đơn theo ID');
+        console.log('   • PATCH  /invoices/:id - Cập nhật hoá đơn');
+        console.log('   • DELETE /invoices/:id - Xóa hoá đơn');
+        console.log('   • GET    /invoices/statistics - Thống kê hoá đơn');
+        console.log('   • GET    /invoices/pending - Hoá đơn chờ xử lý');
+        console.log('   • GET    /invoices/confirmed - Hoá đơn đã xác nhận');
+        console.log('   • GET    /invoices/delivered - Hoá đơn đã giao');
+        console.log('   • GET    /invoices/unpaid - Hoá đơn chưa thanh toán');
+        console.log('   • GET    /invoices/paid - Hoá đơn đã thanh toán');
+        console.log('   • PATCH  /invoices/:id/status - Cập nhật trạng thái');
+        console.log('   • PATCH  /invoices/:id/payment-status - Cập nhật trạng thái thanh toán');
         console.log('🌐 Server đang chạy tại: http://localhost:3000');
         console.log('⏰ Khởi động lúc:', new Date().toLocaleString('vi-VN'));
         console.log('='.repeat(60));
@@ -43,6 +58,7 @@ exports.AppModule = AppModule = __decorate([
             mongoose_1.MongooseModule.forRoot(database_config_1.databaseConfig.uri),
             mongoose_1.MongooseModule.forFeature([{ name: material_model_1.Material.name, schema: material_model_1.MaterialSchema }]),
             auth_module_1.AuthModule,
+            invoice_module_1.InvoiceModule,
         ],
         controllers: [app_controller_1.AppController, material_controller_1.MaterialController],
         providers: [app_service_1.AppService, material_service_1.MaterialService],

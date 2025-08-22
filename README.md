@@ -23,12 +23,44 @@
 
 ## Description
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
+Hệ thống quản lý vật liệu xây dựng được xây dựng bằng [NestJS](https://github.com/nestjs/nest) framework.
+
+### Tính năng chính:
+- Quản lý vật liệu xây dựng
+- Quản lý hoá đơn và khách hàng
+- Hỗ trợ 3 phương thức thanh toán:
+  - 💰 **Tiền mặt** (Cash)
+  - 💳 **Thanh toán online** (Online) 
+  - 📝 **Nợ** (Debt)
+- Hệ thống xác thực JWT
+- API RESTful với validation đầy đủ
 
 ## Project setup
 
 ```bash
 $ npm install
+```
+
+## API Endpoints
+
+### Phương thức thanh toán
+```
+GET /invoices/payment-methods - Lấy danh sách phương thức thanh toán
+GET /invoices/payment-method/:method - Lấy hoá đơn theo phương thức thanh toán
+```
+
+### Hoá đơn
+```
+POST /invoices - Tạo hoá đơn mới
+GET /invoices - Lấy danh sách hoá đơn
+GET /invoices/:id - Lấy hoá đơn theo ID
+PATCH /invoices/:id - Cập nhật hoá đơn
+DELETE /invoices/:id - Xóa hoá đơn
+```
+
+### Thống kê
+```
+GET /invoices/statistics - Lấy thống kê hoá đơn (bao gồm thống kê theo phương thức thanh toán)
 ```
 
 ## Compile and run the project
@@ -69,6 +101,12 @@ $ mau deploy
 ```
 
 With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
+
+## Documentation
+
+- [Phương thức thanh toán](PAYMENT_METHODS.md) - Chi tiết về 3 phương thức thanh toán
+- [API Invoice](INVOICE_API.md) - Tài liệu API hoá đơn
+- [MongoDB Setup](MONGODB_SETUP.md) - Hướng dẫn cài đặt MongoDB
 
 ## Resources
 
