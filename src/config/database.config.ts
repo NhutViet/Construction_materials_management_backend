@@ -1,7 +1,14 @@
 import { MongooseModuleOptions } from '@nestjs/mongoose';
 
+// Đảm bảo biến môi trường được load
+if (!process.env.MONGODB_URI) {
+  throw new Error('MONGODB_URI environment variable is required');
+}
+
+const uri = process.env.MONGODB_URI as string;
+
 export const databaseConfig: MongooseModuleOptions = {
-  uri: 'mongodb+srv://viethcnps40580:nhutviet250705@crm.bglcm8v.mongodb.net/CRM?retryWrites=true&w=majority&appName=crm',
+  uri,
   connectionFactory: (connection) => {
     connection.on('connected', () => {
       console.log('🎉 MongoDB đã kết nối thành công!');
