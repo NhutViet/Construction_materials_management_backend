@@ -6,13 +6,13 @@ export declare class InvoiceController {
     private readonly logger;
     constructor(invoiceService: InvoiceService);
     create(createInvoiceDto: CreateInvoiceDto, user: any): Promise<import("../models/invoice.model").Invoice>;
-    findAll(query: InvoiceQueryDto): Promise<{
+    findAll(query: InvoiceQueryDto, user: any): Promise<{
         invoices: import("../models/invoice.model").Invoice[];
         total: number;
         page: number;
         limit: number;
     }>;
-    getStatistics(startDate?: string, endDate?: string): Promise<{
+    getStatistics(user: any, startDate?: string, endDate?: string): Promise<{
         totalInvoices: number;
         totalRevenue: any;
         pendingInvoices: number;
@@ -29,49 +29,49 @@ export declare class InvoiceController {
             label: string;
         }[];
     };
-    findByInvoiceNumber(invoiceNumber: string): Promise<import("../models/invoice.model").Invoice>;
-    findPending(): Promise<{
+    findByInvoiceNumber(invoiceNumber: string, user: any): Promise<import("../models/invoice.model").Invoice>;
+    findPending(user: any): Promise<{
         invoices: import("../models/invoice.model").Invoice[];
         total: number;
         page: number;
         limit: number;
     }>;
-    findConfirmed(): Promise<{
+    findConfirmed(user: any): Promise<{
         invoices: import("../models/invoice.model").Invoice[];
         total: number;
         page: number;
         limit: number;
     }>;
-    findDelivered(): Promise<{
+    findDelivered(user: any): Promise<{
         invoices: import("../models/invoice.model").Invoice[];
         total: number;
         page: number;
         limit: number;
     }>;
-    findUnpaid(): Promise<{
+    findUnpaid(user: any): Promise<{
         invoices: import("../models/invoice.model").Invoice[];
         total: number;
         page: number;
         limit: number;
     }>;
-    findPaid(): Promise<{
+    findPaid(user: any): Promise<{
         invoices: import("../models/invoice.model").Invoice[];
         total: number;
         page: number;
         limit: number;
     }>;
-    findByPaymentMethod(method: string): Promise<{
+    findByPaymentMethod(method: string, user: any): Promise<{
         invoices: import("../models/invoice.model").Invoice[];
         total: number;
         page: number;
         limit: number;
     }>;
-    findOne(id: string): Promise<import("../models/invoice.model").Invoice>;
-    update(id: string, updateInvoiceDto: UpdateInvoiceDto): Promise<import("../models/invoice.model").Invoice>;
+    findOne(id: string, user: any): Promise<import("../models/invoice.model").Invoice>;
+    update(id: string, updateInvoiceDto: UpdateInvoiceDto, user: any): Promise<import("../models/invoice.model").Invoice>;
     updateStatus(id: string, updateStatusDto: UpdateInvoiceStatusDto, user: any): Promise<import("../models/invoice.model").Invoice>;
-    updatePaymentStatus(id: string, updatePaymentDto: UpdatePaymentStatusDto): Promise<import("../models/invoice.model").Invoice>;
-    remove(id: string): Promise<void>;
-    getInvoiceForPrint(id: string): Promise<import("../models/invoice.model").Invoice>;
+    updatePaymentStatus(id: string, updatePaymentDto: UpdatePaymentStatusDto, user: any): Promise<import("../models/invoice.model").Invoice>;
+    remove(id: string, user: any): Promise<void>;
+    getInvoiceForPrint(id: string, user: any): Promise<import("../models/invoice.model").Invoice>;
     sendInvoiceByEmail(id: string, emailData: {
         email: string;
     }): {

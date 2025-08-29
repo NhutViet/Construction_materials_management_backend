@@ -10,19 +10,19 @@ export declare class InvoiceService {
     private generateInvoiceNumber;
     private calculateInvoiceValues;
     create(createInvoiceDto: CreateInvoiceDto, userId: string): Promise<Invoice>;
-    findAll(query: InvoiceQueryDto): Promise<{
+    findAll(query: InvoiceQueryDto, userId: string): Promise<{
         invoices: Invoice[];
         total: number;
         page: number;
         limit: number;
     }>;
-    findOne(id: string): Promise<Invoice>;
-    findByInvoiceNumber(invoiceNumber: string): Promise<Invoice>;
-    update(id: string, updateInvoiceDto: UpdateInvoiceDto): Promise<Invoice>;
+    findOne(id: string, userId: string): Promise<Invoice>;
+    findByInvoiceNumber(invoiceNumber: string, userId: string): Promise<Invoice>;
+    update(id: string, updateInvoiceDto: UpdateInvoiceDto, userId: string): Promise<Invoice>;
     updateStatus(id: string, updateStatusDto: UpdateInvoiceStatusDto, userId: string): Promise<Invoice>;
-    updatePaymentStatus(id: string, updatePaymentDto: UpdatePaymentStatusDto): Promise<Invoice>;
-    remove(id: string): Promise<void>;
-    getStatistics(startDate?: string, endDate?: string): Promise<{
+    updatePaymentStatus(id: string, updatePaymentDto: UpdatePaymentStatusDto, userId: string): Promise<Invoice>;
+    remove(id: string, userId: string): Promise<void>;
+    getStatistics(userId: string, startDate?: string, endDate?: string): Promise<{
         totalInvoices: number;
         totalRevenue: any;
         pendingInvoices: number;

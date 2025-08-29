@@ -32,15 +32,15 @@ export class InvoiceController {
   }
 
   @Get()
-  findAll(@Query() query: InvoiceQueryDto) {
-    this.logger.log('🔍 GET /invoices - Lấy danh sách hoá đơn');
-    return this.invoiceService.findAll(query);
+  findAll(@Query() query: InvoiceQueryDto, @CurrentUser() user: any) {
+    this.logger.log(`🔍 GET /invoices - Lấy danh sách hoá đơn cho user: ${user.id}`);
+    return this.invoiceService.findAll(query, user.id);
   }
 
   @Get('statistics')
-  getStatistics(@Query('startDate') startDate?: string, @Query('endDate') endDate?: string) {
-    this.logger.log('📊 GET /invoices/statistics - Lấy thống kê hoá đơn');
-    return this.invoiceService.getStatistics(startDate, endDate);
+  getStatistics(@CurrentUser() user: any, @Query('startDate') startDate?: string, @Query('endDate') endDate?: string) {
+    this.logger.log(`📊 GET /invoices/statistics - Lấy thống kê hoá đơn cho user: ${user.id}`);
+    return this.invoiceService.getStatistics(user.id, startDate, endDate);
   }
 
   @Get('payment-methods')
@@ -55,63 +55,63 @@ export class InvoiceController {
   }
 
   @Get('number/:invoiceNumber')
-  findByInvoiceNumber(@Param('invoiceNumber') invoiceNumber: string) {
-    this.logger.log(`🔍 GET /invoices/number/${invoiceNumber} - Lấy hoá đơn theo số`);
-    return this.invoiceService.findByInvoiceNumber(invoiceNumber);
+  findByInvoiceNumber(@Param('invoiceNumber') invoiceNumber: string, @CurrentUser() user: any) {
+    this.logger.log(`🔍 GET /invoices/number/${invoiceNumber} - Lấy hoá đơn theo số cho user: ${user.id}`);
+    return this.invoiceService.findByInvoiceNumber(invoiceNumber, user.id);
   }
 
   @Get('pending')
-  findPending() {
-    this.logger.log('⏳ GET /invoices/pending - Lấy danh sách hoá đơn chờ xử lý');
-    return this.invoiceService.findAll({ status: 'pending', page: 1, limit: 100 });
+  findPending(@CurrentUser() user: any) {
+    this.logger.log(`⏳ GET /invoices/pending - Lấy danh sách hoá đơn chờ xử lý cho user: ${user.id}`);
+    return this.invoiceService.findAll({ status: 'pending', page: 1, limit: 100 }, user.id);
   }
 
   @Get('confirmed')
-  findConfirmed() {
-    this.logger.log('✅ GET /invoices/confirmed - Lấy danh sách hoá đơn đã xác nhận');
-    return this.invoiceService.findAll({ status: 'confirmed', page: 1, limit: 100 });
+  findConfirmed(@CurrentUser() user: any) {
+    this.logger.log(`✅ GET /invoices/confirmed - Lấy danh sách hoá đơn đã xác nhận cho user: ${user.id}`);
+    return this.invoiceService.findAll({ status: 'confirmed', page: 1, limit: 100 }, user.id);
   }
 
   @Get('delivered')
-  findDelivered() {
-    this.logger.log('🚚 GET /invoices/delivered - Lấy danh sách hoá đơn đã giao');
-    return this.invoiceService.findAll({ status: 'delivered', page: 1, limit: 100 });
+  findDelivered(@CurrentUser() user: any) {
+    this.logger.log(`🚚 GET /invoices/delivered - Lấy danh sách hoá đơn đã giao cho user: ${user.id}`);
+    return this.invoiceService.findAll({ status: 'delivered', page: 1, limit: 100 }, user.id);
   }
 
   @Get('unpaid')
-  findUnpaid() {
-    this.logger.log('💰 GET /invoices/unpaid - Lấy danh sách hoá đơn chưa thanh toán');
-    return this.invoiceService.findAll({ paymentStatus: 'unpaid', page: 1, limit: 100 });
+  findUnpaid(@CurrentUser() user: any) {
+    this.logger.log(`💰 GET /invoices/unpaid - Lấy danh sách hoá đơn chưa thanh toán cho user: ${user.id}`);
+    return this.invoiceService.findAll({ paymentStatus: 'unpaid', page: 1, limit: 100 }, user.id);
   }
 
   @Get('paid')
-  findPaid() {
-    this.logger.log('💳 GET /invoices/paid - Lấy danh sách hoá đơn đã thanh toán');
-    return this.invoiceService.findAll({ paymentStatus: 'paid', page: 1, limit: 100 });
+  findPaid(@CurrentUser() user: any) {
+    this.logger.log(`💳 GET /invoices/paid - Lấy danh sách hoá đơn đã thanh toán cho user: ${user.id}`);
+    return this.invoiceService.findAll({ paymentStatus: 'paid', page: 1, limit: 100 }, user.id);
   }
 
   @Get('payment-method/:method')
-  findByPaymentMethod(@Param('method') method: string) {
-    this.logger.log(`💳 GET /invoices/payment-method/${method} - Lấy danh sách hoá đơn theo phương thức thanh toán`);
+  findByPaymentMethod(@Param('method') method: string, @CurrentUser() user: any) {
+    this.logger.log(`💳 GET /invoices/payment-method/${method} - Lấy danh sách hoá đơn theo phương thức thanh toán cho user: ${user.id}`);
     
     // Validate method parameter
     if (!Object.values(PaymentMethod).includes(method as PaymentMethod)) {
       throw new BadRequestException(`Phương thức thanh toán không hợp lệ: ${method}`);
     }
     
-    return this.invoiceService.findAll({ paymentMethod: method as PaymentMethod, page: 1, limit: 100 });
+    return this.invoiceService.findAll({ paymentMethod: method as PaymentMethod, page: 1, limit: 100 }, user.id);
   }
 
   @Get(':id')
-  findOne(@Param('id') id: string) {
-    this.logger.log(`🔍 GET /invoices/${id} - Lấy thông tin hoá đơn theo ID`);
-    return this.invoiceService.findOne(id);
+  findOne(@Param('id') id: string, @CurrentUser() user: any) {
+    this.logger.log(`🔍 GET /invoices/${id} - Lấy thông tin hoá đơn theo ID cho user: ${user.id}`);
+    return this.invoiceService.findOne(id, user.id);
   }
 
   @Patch(':id')
-  update(@Param('id') id: string, @Body() updateInvoiceDto: UpdateInvoiceDto) {
-    this.logger.log(`🔄 PATCH /invoices/${id} - Cập nhật hoá đơn`);
-    return this.invoiceService.update(id, updateInvoiceDto);
+  update(@Param('id') id: string, @Body() updateInvoiceDto: UpdateInvoiceDto, @CurrentUser() user: any) {
+    this.logger.log(`🔄 PATCH /invoices/${id} - Cập nhật hoá đơn cho user: ${user.id}`);
+    return this.invoiceService.update(id, updateInvoiceDto, user.id);
   }
 
   @Patch(':id/status')
@@ -127,23 +127,24 @@ export class InvoiceController {
   @Patch(':id/payment-status')
   updatePaymentStatus(
     @Param('id') id: string,
-    @Body() updatePaymentDto: UpdatePaymentStatusDto
+    @Body() updatePaymentDto: UpdatePaymentStatusDto,
+    @CurrentUser() user: any
   ) {
-    this.logger.log(`💳 PATCH /invoices/${id}/payment-status - Cập nhật trạng thái thanh toán thành: ${updatePaymentDto.paymentStatus}`);
-    return this.invoiceService.updatePaymentStatus(id, updatePaymentDto);
+    this.logger.log(`💳 PATCH /invoices/${id}/payment-status - Cập nhật trạng thái thanh toán thành: ${updatePaymentDto.paymentStatus} cho user: ${user.id}`);
+    return this.invoiceService.updatePaymentStatus(id, updatePaymentDto, user.id);
   }
 
   @Delete(':id')
-  remove(@Param('id') id: string) {
-    this.logger.log(`🗑️ DELETE /invoices/${id} - Xóa hoá đơn`);
-    return this.invoiceService.remove(id);
+  remove(@Param('id') id: string, @CurrentUser() user: any) {
+    this.logger.log(`🗑️ DELETE /invoices/${id} - Xóa hoá đơn cho user: ${user.id}`);
+    return this.invoiceService.remove(id, user.id);
   }
 
   // API để in hoá đơn (trả về dữ liệu để frontend render)
   @Get(':id/print')
-  getInvoiceForPrint(@Param('id') id: string) {
-    this.logger.log(`🖨️ GET /invoices/${id}/print - Lấy dữ liệu hoá đơn để in`);
-    return this.invoiceService.findOne(id);
+  getInvoiceForPrint(@Param('id') id: string, @CurrentUser() user: any) {
+    this.logger.log(`🖨️ GET /invoices/${id}/print - Lấy dữ liệu hoá đơn để in cho user: ${user.id}`);
+    return this.invoiceService.findOne(id, user.id);
   }
 
   // API để gửi hoá đơn qua email (placeholder)

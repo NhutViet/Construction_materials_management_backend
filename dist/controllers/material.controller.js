@@ -16,92 +16,102 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.MaterialController = void 0;
 const common_1 = require("@nestjs/common");
 const material_service_1 = require("../services/material.service");
+const jwt_auth_guard_1 = require("../guards/jwt-auth.guard");
+const current_user_decorator_1 = require("../decorators/current-user.decorator");
 let MaterialController = MaterialController_1 = class MaterialController {
     materialService;
     logger = new common_1.Logger(MaterialController_1.name);
     constructor(materialService) {
         this.materialService = materialService;
     }
-    create(createMaterialDto) {
-        this.logger.log(`📝 POST /materials - Tạo vật liệu mới: ${createMaterialDto.name}`);
-        return this.materialService.create(createMaterialDto);
+    create(createMaterialDto, user) {
+        this.logger.log(`📝 POST /materials - Tạo vật liệu mới: ${createMaterialDto.name} cho user: ${user.id}`);
+        return this.materialService.create(createMaterialDto, user.id);
     }
-    findAll() {
-        this.logger.log('🔍 GET /materials - Lấy danh sách tất cả vật liệu');
-        return this.materialService.findAll();
+    findAll(user) {
+        this.logger.log(`🔍 GET /materials - Lấy danh sách vật liệu cho user: ${user.id}`);
+        return this.materialService.findAll(user.id);
     }
-    findLowStock() {
-        this.logger.log('⚠️ GET /materials/low-stock - Lấy danh sách vật liệu sắp hết');
-        return this.materialService.findLowStock();
+    findLowStock(user) {
+        this.logger.log(`⚠️ GET /materials/low-stock - Lấy danh sách vật liệu sắp hết cho user: ${user.id}`);
+        return this.materialService.findLowStock(10, user.id);
     }
-    findByCategory(category) {
-        this.logger.log(`🔍 GET /materials/category/${category} - Lấy vật liệu theo danh mục`);
-        return this.materialService.findByCategory(category);
+    findByCategory(category, user) {
+        this.logger.log(`🔍 GET /materials/category/${category} - Lấy vật liệu theo danh mục cho user: ${user.id}`);
+        return this.materialService.findByCategory(category, user.id);
     }
-    findOne(id) {
-        this.logger.log(`🔍 GET /materials/${id} - Lấy thông tin vật liệu theo ID`);
-        return this.materialService.findOne(id);
+    findOne(id, user) {
+        this.logger.log(`🔍 GET /materials/${id} - Lấy thông tin vật liệu theo ID cho user: ${user.id}`);
+        return this.materialService.findOne(id, user.id);
     }
-    update(id, updateMaterialDto) {
-        this.logger.log(`🔄 PATCH /materials/${id} - Cập nhật vật liệu`);
-        return this.materialService.update(id, updateMaterialDto);
+    update(id, updateMaterialDto, user) {
+        this.logger.log(`🔄 PATCH /materials/${id} - Cập nhật vật liệu cho user: ${user.id}`);
+        return this.materialService.update(id, updateMaterialDto, user.id);
     }
-    remove(id) {
-        this.logger.log(`🗑️ DELETE /materials/${id} - Xóa vật liệu`);
-        return this.materialService.remove(id);
+    remove(id, user) {
+        this.logger.log(`🗑️ DELETE /materials/${id} - Xóa vật liệu cho user: ${user.id}`);
+        return this.materialService.remove(id, user.id);
     }
 };
 exports.MaterialController = MaterialController;
 __decorate([
     (0, common_1.Post)(),
     __param(0, (0, common_1.Body)()),
+    __param(1, (0, current_user_decorator_1.CurrentUser)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Object]),
+    __metadata("design:paramtypes", [Object, Object]),
     __metadata("design:returntype", void 0)
 ], MaterialController.prototype, "create", null);
 __decorate([
     (0, common_1.Get)(),
+    __param(0, (0, current_user_decorator_1.CurrentUser)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", []),
+    __metadata("design:paramtypes", [Object]),
     __metadata("design:returntype", void 0)
 ], MaterialController.prototype, "findAll", null);
 __decorate([
     (0, common_1.Get)('low-stock'),
+    __param(0, (0, current_user_decorator_1.CurrentUser)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", []),
+    __metadata("design:paramtypes", [Object]),
     __metadata("design:returntype", void 0)
 ], MaterialController.prototype, "findLowStock", null);
 __decorate([
     (0, common_1.Get)('category/:category'),
     __param(0, (0, common_1.Param)('category')),
+    __param(1, (0, current_user_decorator_1.CurrentUser)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String]),
+    __metadata("design:paramtypes", [String, Object]),
     __metadata("design:returntype", void 0)
 ], MaterialController.prototype, "findByCategory", null);
 __decorate([
     (0, common_1.Get)(':id'),
     __param(0, (0, common_1.Param)('id')),
+    __param(1, (0, current_user_decorator_1.CurrentUser)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String]),
+    __metadata("design:paramtypes", [String, Object]),
     __metadata("design:returntype", void 0)
 ], MaterialController.prototype, "findOne", null);
 __decorate([
     (0, common_1.Patch)(':id'),
     __param(0, (0, common_1.Param)('id')),
     __param(1, (0, common_1.Body)()),
+    __param(2, (0, current_user_decorator_1.CurrentUser)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String, Object]),
+    __metadata("design:paramtypes", [String, Object, Object]),
     __metadata("design:returntype", void 0)
 ], MaterialController.prototype, "update", null);
 __decorate([
     (0, common_1.Delete)(':id'),
     __param(0, (0, common_1.Param)('id')),
+    __param(1, (0, current_user_decorator_1.CurrentUser)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String]),
+    __metadata("design:paramtypes", [String, Object]),
     __metadata("design:returntype", void 0)
 ], MaterialController.prototype, "remove", null);
 exports.MaterialController = MaterialController = MaterialController_1 = __decorate([
     (0, common_1.Controller)('materials'),
+    (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard),
     __metadata("design:paramtypes", [material_service_1.MaterialService])
 ], MaterialController);
 //# sourceMappingURL=material.controller.js.map

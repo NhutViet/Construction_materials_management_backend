@@ -83,6 +83,9 @@ let InvoiceService = InvoiceService_1 = class InvoiceService {
             if (!material) {
                 throw new common_1.NotFoundException(`Vật liệu với ID ${item.materialId} không tồn tại`);
             }
+            if (material.userId.toString() !== userId) {
+                throw new common_1.ForbiddenException(`Bạn không có quyền sử dụng vật liệu ${material.name}`);
+            }
             return {
                 materialId: item.materialId,
                 materialName: material.name,
@@ -106,10 +109,13 @@ let InvoiceService = InvoiceService_1 = class InvoiceService {
         this.logger.log(`Hoá đơn ${invoiceNumber} đã được tạo thành công`);
         return savedInvoice;
     }
-    async findAll(query) {
-        this.logger.log('Lấy danh sách hoá đơn');
+    async findAll(query, userId) {
+        this.logger.log(`Lấy danh sách hoá đơn cho user: ${userId}`);
         const { status, paymentStatus, paymentMethod, customerName, invoiceNumber, startDate, endDate, page = 1, limit = 10 } = query;
-        const filter = { isDeleted: false };
+        const filter = {
+            isDeleted: false,
+            createdBy: new mongoose_2.Types.ObjectId(userId)
+        };
         if (status)
             filter.status = status;
         if (paymentStatus)
@@ -147,40 +153,52 @@ let InvoiceService = InvoiceService_1 = class InvoiceService {
             limit
         };
     }
-    async findOne(id) {
-        this.logger.log(`Lấy hoá đơn với ID: ${id}`);
+    async findOne(id, userId) {
+        this.logger.log(`Lấy hoá đơn với ID: ${id} cho user: ${userId}`);
         const invoice = await this.invoiceModel
-            .findOne({ _id: id, isDeleted: false })
+            .findOne({ _id: id, isDeleted: false, createdBy: new mongoose_2.Types.ObjectId(userId) })
             .populate('customerId', 'name email')
             .populate('createdBy', 'name email')
             .populate('approvedBy', 'name email')
             .exec();
         if (!invoice) {
-            throw new common_1.NotFoundException(`Hoá đơn với ID ${id} không tồn tại`);
+            throw new common_1.NotFoundException(`Hoá đơn với ID ${id} không tồn tại hoặc bạn không có quyền truy cập`);
         }
         return invoice;
     }
-    async findByInvoiceNumber(invoiceNumber) {
-        this.logger.log(`Lấy hoá đơn với số: ${invoiceNumber}`);
+    async findByInvoiceNumber(invoiceNumber, userId) {
+        this.logger.log(`Lấy hoá đơn với số: ${invoiceNumber} cho user: ${userId}`);
         const invoice = await this.invoiceModel
-            .findOne({ invoiceNumber, isDeleted: false })
+            .findOne({
+            invoiceNumber,
+            isDeleted: false,
+            createdBy: new mongoose_2.Types.ObjectId(userId)
+        })
             .populate('customerId', 'name email')
             .populate('createdBy', 'name email')
             .populate('approvedBy', 'name email')
             .exec();
         if (!invoice) {
-            throw new common_1.NotFoundException(`Hoá đơn với số ${invoiceNumber} không tồn tại`);
+            throw new common_1.NotFoundException(`Hoá đơn với số ${invoiceNumber} không tồn tại hoặc bạn không có quyền truy cập`);
         }
         return invoice;
     }
-    async update(id, updateInvoiceDto) {
-        this.logger.log(`Cập nhật hoá đơn với ID: ${id}`);
-        const invoice = await this.findOne(id);
+    async update(id, updateInvoiceDto, userId) {
+        this.logger.log(`Cập nhật hoá đơn với ID: ${id} cho user: ${userId}`);
+        const invoice = await this.invoiceModel
+            .findOne({ _id: id, isDeleted: false, createdBy: new mongoose_2.Types.ObjectId(userId) })
+            .exec();
+        if (!invoice) {
+            throw new common_1.ForbiddenException('Bạn không có quyền cập nhật hoá đơn này');
+        }
         if (updateInvoiceDto.items) {
             const updatedItems = await Promise.all(updateInvoiceDto.items.map(async (item) => {
                 const material = await this.materialModel.findById(item.materialId);
                 if (!material) {
                     throw new common_1.NotFoundException(`Vật liệu với ID ${item.materialId} không tồn tại`);
+                }
+                if (material.userId.toString() !== userId) {
+                    throw new common_1.ForbiddenException(`Bạn không có quyền sử dụng vật liệu ${material.name}`);
                 }
                 return {
                     materialId: item.materialId,
@@ -207,12 +225,17 @@ let InvoiceService = InvoiceService_1 = class InvoiceService {
         if (!updatedInvoice) {
             throw new common_1.NotFoundException(`Không thể cập nhật hoá đơn với ID ${id}`);
         }
-        this.logger.log(`Hoá đơn ${id} đã được cập nhật thành công`);
+        this.logger.log(`Hoá đơn ${id} đã được cập nhật thành công cho user: ${userId}`);
         return updatedInvoice;
     }
     async updateStatus(id, updateStatusDto, userId) {
-        this.logger.log(`Cập nhật trạng thái hoá đơn ${id} thành: ${updateStatusDto.status}`);
-        const invoice = await this.findOne(id);
+        this.logger.log(`Cập nhật trạng thái hoá đơn ${id} thành: ${updateStatusDto.status} cho user: ${userId}`);
+        const invoice = await this.invoiceModel
+            .findOne({ _id: id, isDeleted: false, createdBy: new mongoose_2.Types.ObjectId(userId) })
+            .exec();
+        if (!invoice) {
+            throw new common_1.ForbiddenException('Bạn không có quyền cập nhật hoá đơn này');
+        }
         if (invoice.status === 'delivered' || invoice.status === 'cancelled') {
             throw new common_1.BadRequestException('Không thể cập nhật trạng thái hoá đơn đã hoàn thành hoặc bị hủy');
         }
@@ -233,12 +256,17 @@ let InvoiceService = InvoiceService_1 = class InvoiceService {
         if (!updatedInvoice) {
             throw new common_1.NotFoundException(`Không thể cập nhật trạng thái hoá đơn với ID ${id}`);
         }
-        this.logger.log(`Trạng thái hoá đơn ${id} đã được cập nhật thành: ${updateStatusDto.status}`);
+        this.logger.log(`Trạng thái hoá đơn ${id} đã được cập nhật thành: ${updateStatusDto.status} cho user: ${userId}`);
         return updatedInvoice;
     }
-    async updatePaymentStatus(id, updatePaymentDto) {
-        this.logger.log(`Cập nhật trạng thái thanh toán hoá đơn ${id} thành: ${updatePaymentDto.paymentStatus}`);
-        const invoice = await this.findOne(id);
+    async updatePaymentStatus(id, updatePaymentDto, userId) {
+        this.logger.log(`Cập nhật trạng thái thanh toán hoá đơn ${id} thành: ${updatePaymentDto.paymentStatus} cho user: ${userId}`);
+        const invoice = await this.invoiceModel
+            .findOne({ _id: id, isDeleted: false, createdBy: new mongoose_2.Types.ObjectId(userId) })
+            .exec();
+        if (!invoice) {
+            throw new common_1.ForbiddenException('Bạn không có quyền cập nhật hoá đơn này');
+        }
         const updateData = {
             paymentStatus: updatePaymentDto.paymentStatus,
             notes: updatePaymentDto.notes
@@ -252,21 +280,29 @@ let InvoiceService = InvoiceService_1 = class InvoiceService {
         if (!updatedInvoice) {
             throw new common_1.NotFoundException(`Không thể cập nhật trạng thái thanh toán hoá đơn với ID ${id}`);
         }
-        this.logger.log(`Trạng thái thanh toán hoá đơn ${id} đã được cập nhật thành: ${updatePaymentDto.paymentStatus}`);
+        this.logger.log(`Trạng thái thanh toán hoá đơn ${id} đã được cập nhật thành: ${updatePaymentDto.paymentStatus} cho user: ${userId}`);
         return updatedInvoice;
     }
-    async remove(id) {
-        this.logger.log(`Xóa hoá đơn với ID: ${id}`);
-        const invoice = await this.findOne(id);
+    async remove(id, userId) {
+        this.logger.log(`Xóa hoá đơn với ID: ${id} cho user: ${userId}`);
+        const invoice = await this.invoiceModel
+            .findOne({ _id: id, isDeleted: false, createdBy: new mongoose_2.Types.ObjectId(userId) })
+            .exec();
+        if (!invoice) {
+            throw new common_1.ForbiddenException('Bạn không có quyền xóa hoá đơn này');
+        }
         if (invoice.status === 'delivered' || invoice.paymentStatus === 'paid') {
             throw new common_1.BadRequestException('Không thể xóa hoá đơn đã hoàn thành hoặc đã thanh toán');
         }
         await this.invoiceModel.findByIdAndUpdate(id, { isDeleted: true });
-        this.logger.log(`Hoá đơn ${id} đã được xóa thành công`);
+        this.logger.log(`Hoá đơn ${id} đã được xóa thành công cho user: ${userId}`);
     }
-    async getStatistics(startDate, endDate) {
-        this.logger.log('Lấy thống kê hoá đơn');
-        const filter = { isDeleted: false };
+    async getStatistics(userId, startDate, endDate) {
+        this.logger.log(`Lấy thống kê hoá đơn cho user: ${userId}`);
+        const filter = {
+            isDeleted: false,
+            createdBy: new mongoose_2.Types.ObjectId(userId)
+        };
         if (startDate || endDate) {
             filter.createdAt = {};
             if (startDate)

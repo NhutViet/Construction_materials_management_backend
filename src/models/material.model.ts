@@ -1,10 +1,13 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { Document } from 'mongoose';
+import { Document, Types } from 'mongoose';
 
 export type MaterialDocument = Material & Document;
 
 @Schema({ timestamps: true })
 export class Material {
+  @Prop({ required: true, type: Types.ObjectId, ref: 'User' })
+  userId: Types.ObjectId; // ID của user sở hữu vật liệu này
+
   @Prop({ required: true })
   name: string;
 
@@ -31,3 +34,8 @@ export class Material {
 }
 
 export const MaterialSchema = SchemaFactory.createForClass(Material);
+
+// Indexes để tối ưu query
+MaterialSchema.index({ userId: 1 });
+MaterialSchema.index({ userId: 1, category: 1 });
+MaterialSchema.index({ userId: 1, isActive: 1 });

@@ -30,13 +30,13 @@ let InvoiceController = InvoiceController_1 = class InvoiceController {
         this.logger.log(`📝 POST /invoices - Tạo hoá đơn mới cho khách hàng: ${createInvoiceDto.customerName}`);
         return this.invoiceService.create(createInvoiceDto, user.id);
     }
-    findAll(query) {
-        this.logger.log('🔍 GET /invoices - Lấy danh sách hoá đơn');
-        return this.invoiceService.findAll(query);
+    findAll(query, user) {
+        this.logger.log(`🔍 GET /invoices - Lấy danh sách hoá đơn cho user: ${user.id}`);
+        return this.invoiceService.findAll(query, user.id);
     }
-    getStatistics(startDate, endDate) {
-        this.logger.log('📊 GET /invoices/statistics - Lấy thống kê hoá đơn');
-        return this.invoiceService.getStatistics(startDate, endDate);
+    getStatistics(user, startDate, endDate) {
+        this.logger.log(`📊 GET /invoices/statistics - Lấy thống kê hoá đơn cho user: ${user.id}`);
+        return this.invoiceService.getStatistics(user.id, startDate, endDate);
     }
     getPaymentMethods() {
         this.logger.log('💳 GET /invoices/payment-methods - Lấy danh sách phương thức thanh toán');
@@ -47,60 +47,60 @@ let InvoiceController = InvoiceController_1 = class InvoiceController {
             }))
         };
     }
-    findByInvoiceNumber(invoiceNumber) {
-        this.logger.log(`🔍 GET /invoices/number/${invoiceNumber} - Lấy hoá đơn theo số`);
-        return this.invoiceService.findByInvoiceNumber(invoiceNumber);
+    findByInvoiceNumber(invoiceNumber, user) {
+        this.logger.log(`🔍 GET /invoices/number/${invoiceNumber} - Lấy hoá đơn theo số cho user: ${user.id}`);
+        return this.invoiceService.findByInvoiceNumber(invoiceNumber, user.id);
     }
-    findPending() {
-        this.logger.log('⏳ GET /invoices/pending - Lấy danh sách hoá đơn chờ xử lý');
-        return this.invoiceService.findAll({ status: 'pending', page: 1, limit: 100 });
+    findPending(user) {
+        this.logger.log(`⏳ GET /invoices/pending - Lấy danh sách hoá đơn chờ xử lý cho user: ${user.id}`);
+        return this.invoiceService.findAll({ status: 'pending', page: 1, limit: 100 }, user.id);
     }
-    findConfirmed() {
-        this.logger.log('✅ GET /invoices/confirmed - Lấy danh sách hoá đơn đã xác nhận');
-        return this.invoiceService.findAll({ status: 'confirmed', page: 1, limit: 100 });
+    findConfirmed(user) {
+        this.logger.log(`✅ GET /invoices/confirmed - Lấy danh sách hoá đơn đã xác nhận cho user: ${user.id}`);
+        return this.invoiceService.findAll({ status: 'confirmed', page: 1, limit: 100 }, user.id);
     }
-    findDelivered() {
-        this.logger.log('🚚 GET /invoices/delivered - Lấy danh sách hoá đơn đã giao');
-        return this.invoiceService.findAll({ status: 'delivered', page: 1, limit: 100 });
+    findDelivered(user) {
+        this.logger.log(`🚚 GET /invoices/delivered - Lấy danh sách hoá đơn đã giao cho user: ${user.id}`);
+        return this.invoiceService.findAll({ status: 'delivered', page: 1, limit: 100 }, user.id);
     }
-    findUnpaid() {
-        this.logger.log('💰 GET /invoices/unpaid - Lấy danh sách hoá đơn chưa thanh toán');
-        return this.invoiceService.findAll({ paymentStatus: 'unpaid', page: 1, limit: 100 });
+    findUnpaid(user) {
+        this.logger.log(`💰 GET /invoices/unpaid - Lấy danh sách hoá đơn chưa thanh toán cho user: ${user.id}`);
+        return this.invoiceService.findAll({ paymentStatus: 'unpaid', page: 1, limit: 100 }, user.id);
     }
-    findPaid() {
-        this.logger.log('💳 GET /invoices/paid - Lấy danh sách hoá đơn đã thanh toán');
-        return this.invoiceService.findAll({ paymentStatus: 'paid', page: 1, limit: 100 });
+    findPaid(user) {
+        this.logger.log(`💳 GET /invoices/paid - Lấy danh sách hoá đơn đã thanh toán cho user: ${user.id}`);
+        return this.invoiceService.findAll({ paymentStatus: 'paid', page: 1, limit: 100 }, user.id);
     }
-    findByPaymentMethod(method) {
-        this.logger.log(`💳 GET /invoices/payment-method/${method} - Lấy danh sách hoá đơn theo phương thức thanh toán`);
+    findByPaymentMethod(method, user) {
+        this.logger.log(`💳 GET /invoices/payment-method/${method} - Lấy danh sách hoá đơn theo phương thức thanh toán cho user: ${user.id}`);
         if (!Object.values(payment_constants_1.PaymentMethod).includes(method)) {
             throw new common_1.BadRequestException(`Phương thức thanh toán không hợp lệ: ${method}`);
         }
-        return this.invoiceService.findAll({ paymentMethod: method, page: 1, limit: 100 });
+        return this.invoiceService.findAll({ paymentMethod: method, page: 1, limit: 100 }, user.id);
     }
-    findOne(id) {
-        this.logger.log(`🔍 GET /invoices/${id} - Lấy thông tin hoá đơn theo ID`);
-        return this.invoiceService.findOne(id);
+    findOne(id, user) {
+        this.logger.log(`🔍 GET /invoices/${id} - Lấy thông tin hoá đơn theo ID cho user: ${user.id}`);
+        return this.invoiceService.findOne(id, user.id);
     }
-    update(id, updateInvoiceDto) {
-        this.logger.log(`🔄 PATCH /invoices/${id} - Cập nhật hoá đơn`);
-        return this.invoiceService.update(id, updateInvoiceDto);
+    update(id, updateInvoiceDto, user) {
+        this.logger.log(`🔄 PATCH /invoices/${id} - Cập nhật hoá đơn cho user: ${user.id}`);
+        return this.invoiceService.update(id, updateInvoiceDto, user.id);
     }
     updateStatus(id, updateStatusDto, user) {
         this.logger.log(`🔄 PATCH /invoices/${id}/status - Cập nhật trạng thái hoá đơn thành: ${updateStatusDto.status}`);
         return this.invoiceService.updateStatus(id, updateStatusDto, user.id);
     }
-    updatePaymentStatus(id, updatePaymentDto) {
-        this.logger.log(`💳 PATCH /invoices/${id}/payment-status - Cập nhật trạng thái thanh toán thành: ${updatePaymentDto.paymentStatus}`);
-        return this.invoiceService.updatePaymentStatus(id, updatePaymentDto);
+    updatePaymentStatus(id, updatePaymentDto, user) {
+        this.logger.log(`💳 PATCH /invoices/${id}/payment-status - Cập nhật trạng thái thanh toán thành: ${updatePaymentDto.paymentStatus} cho user: ${user.id}`);
+        return this.invoiceService.updatePaymentStatus(id, updatePaymentDto, user.id);
     }
-    remove(id) {
-        this.logger.log(`🗑️ DELETE /invoices/${id} - Xóa hoá đơn`);
-        return this.invoiceService.remove(id);
+    remove(id, user) {
+        this.logger.log(`🗑️ DELETE /invoices/${id} - Xóa hoá đơn cho user: ${user.id}`);
+        return this.invoiceService.remove(id, user.id);
     }
-    getInvoiceForPrint(id) {
-        this.logger.log(`🖨️ GET /invoices/${id}/print - Lấy dữ liệu hoá đơn để in`);
-        return this.invoiceService.findOne(id);
+    getInvoiceForPrint(id, user) {
+        this.logger.log(`🖨️ GET /invoices/${id}/print - Lấy dữ liệu hoá đơn để in cho user: ${user.id}`);
+        return this.invoiceService.findOne(id, user.id);
     }
     sendInvoiceByEmail(id, emailData) {
         this.logger.log(`📧 POST /invoices/${id}/send-email - Gửi hoá đơn qua email: ${emailData.email}`);
@@ -123,16 +123,18 @@ __decorate([
 __decorate([
     (0, common_1.Get)(),
     __param(0, (0, common_1.Query)()),
+    __param(1, (0, current_user_decorator_1.CurrentUser)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [invoice_dto_1.InvoiceQueryDto]),
+    __metadata("design:paramtypes", [invoice_dto_1.InvoiceQueryDto, Object]),
     __metadata("design:returntype", void 0)
 ], InvoiceController.prototype, "findAll", null);
 __decorate([
     (0, common_1.Get)('statistics'),
-    __param(0, (0, common_1.Query)('startDate')),
-    __param(1, (0, common_1.Query)('endDate')),
+    __param(0, (0, current_user_decorator_1.CurrentUser)()),
+    __param(1, (0, common_1.Query)('startDate')),
+    __param(2, (0, common_1.Query)('endDate')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String, String]),
+    __metadata("design:paramtypes", [Object, String, String]),
     __metadata("design:returntype", void 0)
 ], InvoiceController.prototype, "getStatistics", null);
 __decorate([
@@ -144,60 +146,69 @@ __decorate([
 __decorate([
     (0, common_1.Get)('number/:invoiceNumber'),
     __param(0, (0, common_1.Param)('invoiceNumber')),
+    __param(1, (0, current_user_decorator_1.CurrentUser)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String]),
+    __metadata("design:paramtypes", [String, Object]),
     __metadata("design:returntype", void 0)
 ], InvoiceController.prototype, "findByInvoiceNumber", null);
 __decorate([
     (0, common_1.Get)('pending'),
+    __param(0, (0, current_user_decorator_1.CurrentUser)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", []),
+    __metadata("design:paramtypes", [Object]),
     __metadata("design:returntype", void 0)
 ], InvoiceController.prototype, "findPending", null);
 __decorate([
     (0, common_1.Get)('confirmed'),
+    __param(0, (0, current_user_decorator_1.CurrentUser)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", []),
+    __metadata("design:paramtypes", [Object]),
     __metadata("design:returntype", void 0)
 ], InvoiceController.prototype, "findConfirmed", null);
 __decorate([
     (0, common_1.Get)('delivered'),
+    __param(0, (0, current_user_decorator_1.CurrentUser)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", []),
+    __metadata("design:paramtypes", [Object]),
     __metadata("design:returntype", void 0)
 ], InvoiceController.prototype, "findDelivered", null);
 __decorate([
     (0, common_1.Get)('unpaid'),
+    __param(0, (0, current_user_decorator_1.CurrentUser)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", []),
+    __metadata("design:paramtypes", [Object]),
     __metadata("design:returntype", void 0)
 ], InvoiceController.prototype, "findUnpaid", null);
 __decorate([
     (0, common_1.Get)('paid'),
+    __param(0, (0, current_user_decorator_1.CurrentUser)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", []),
+    __metadata("design:paramtypes", [Object]),
     __metadata("design:returntype", void 0)
 ], InvoiceController.prototype, "findPaid", null);
 __decorate([
     (0, common_1.Get)('payment-method/:method'),
     __param(0, (0, common_1.Param)('method')),
+    __param(1, (0, current_user_decorator_1.CurrentUser)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String]),
+    __metadata("design:paramtypes", [String, Object]),
     __metadata("design:returntype", void 0)
 ], InvoiceController.prototype, "findByPaymentMethod", null);
 __decorate([
     (0, common_1.Get)(':id'),
     __param(0, (0, common_1.Param)('id')),
+    __param(1, (0, current_user_decorator_1.CurrentUser)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String]),
+    __metadata("design:paramtypes", [String, Object]),
     __metadata("design:returntype", void 0)
 ], InvoiceController.prototype, "findOne", null);
 __decorate([
     (0, common_1.Patch)(':id'),
     __param(0, (0, common_1.Param)('id')),
     __param(1, (0, common_1.Body)()),
+    __param(2, (0, current_user_decorator_1.CurrentUser)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String, invoice_dto_1.UpdateInvoiceDto]),
+    __metadata("design:paramtypes", [String, invoice_dto_1.UpdateInvoiceDto, Object]),
     __metadata("design:returntype", void 0)
 ], InvoiceController.prototype, "update", null);
 __decorate([
@@ -213,22 +224,25 @@ __decorate([
     (0, common_1.Patch)(':id/payment-status'),
     __param(0, (0, common_1.Param)('id')),
     __param(1, (0, common_1.Body)()),
+    __param(2, (0, current_user_decorator_1.CurrentUser)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String, invoice_dto_1.UpdatePaymentStatusDto]),
+    __metadata("design:paramtypes", [String, invoice_dto_1.UpdatePaymentStatusDto, Object]),
     __metadata("design:returntype", void 0)
 ], InvoiceController.prototype, "updatePaymentStatus", null);
 __decorate([
     (0, common_1.Delete)(':id'),
     __param(0, (0, common_1.Param)('id')),
+    __param(1, (0, current_user_decorator_1.CurrentUser)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String]),
+    __metadata("design:paramtypes", [String, Object]),
     __metadata("design:returntype", void 0)
 ], InvoiceController.prototype, "remove", null);
 __decorate([
     (0, common_1.Get)(':id/print'),
     __param(0, (0, common_1.Param)('id')),
+    __param(1, (0, current_user_decorator_1.CurrentUser)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String]),
+    __metadata("design:paramtypes", [String, Object]),
     __metadata("design:returntype", void 0)
 ], InvoiceController.prototype, "getInvoiceForPrint", null);
 __decorate([
