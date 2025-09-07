@@ -105,6 +105,26 @@ let AuthService = class AuthService {
         }
         return null;
     }
+    async getProfile(userId) {
+        const user = await this.userModel.findById(userId);
+        if (!user) {
+            throw new common_1.UnauthorizedException('User không tồn tại');
+        }
+        const { password, ...result } = user.toObject();
+        return result;
+    }
+    async updateProfile(userId, updateProfileDto) {
+        const user = await this.userModel.findById(userId);
+        if (!user) {
+            throw new common_1.UnauthorizedException('User không tồn tại');
+        }
+        const updatedUser = await this.userModel.findByIdAndUpdate(userId, updateProfileDto, { new: true, runValidators: true });
+        if (!updatedUser) {
+            throw new common_1.UnauthorizedException('Không thể cập nhật thông tin user');
+        }
+        const { password, ...result } = updatedUser.toObject();
+        return result;
+    }
 };
 exports.AuthService = AuthService;
 exports.AuthService = AuthService = __decorate([

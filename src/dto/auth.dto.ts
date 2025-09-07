@@ -23,4 +23,28 @@ export class RegisterDto {
   @IsString()
   @IsNotEmpty()
   fullname: string;
+
+  @IsString()
+  phoneNumber?: string;
+
+  @IsString()
+  bankNumber?: string;
+
+  @IsString()
+  bankName?: string;
+}
+
+export class UpdateProfileDto {
+  @IsString()
+  @IsNotEmpty()
+  fullname: string;
+
+  @IsString()
+  phoneNumber?: string;
+
+  @IsString()
+  bankNumber?: string;
+
+  @IsString()
+  bankName?: string;
 }
