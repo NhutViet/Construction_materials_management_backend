@@ -77,6 +77,16 @@ export class CreateInvoiceDto {
   @IsOptional()
   @IsEnum(['unpaid', 'partial', 'paid'])
   paymentStatus?: string;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  paidAmount?: number;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  remainingAmount?: number;
 }
 
 export class UpdateInvoiceDto {
@@ -127,6 +137,16 @@ export class UpdateInvoiceDto {
   @IsOptional()
   @IsEnum(['unpaid', 'partial', 'paid'])
   paymentStatus?: string;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  paidAmount?: number;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  remainingAmount?: number;
 }
 
 export class UpdateInvoiceStatusDto {
@@ -148,8 +168,27 @@ export class UpdatePaymentStatusDto {
   paidAmount?: number;
 
   @IsOptional()
+  @IsNumber()
+  @Min(0)
+  remainingAmount?: number;
+
+  @IsOptional()
   @IsString()
   notes?: string;
+}
+
+export class PaymentDto {
+  @IsNumber()
+  @Min(0)
+  amount: number; // Số tiền thanh toán
+
+  @IsOptional()
+  @IsString()
+  notes?: string; // Ghi chú thanh toán
+
+  @IsOptional()
+  @IsEnum(PaymentMethod)
+  paymentMethod?: PaymentMethod; // Phương thức thanh toán (nếu khác với hoá đơn gốc)
 }
 
 export class InvoiceQueryDto {

@@ -24,6 +24,8 @@ export declare class Invoice extends Document {
     status: 'pending' | 'confirmed' | 'shipped' | 'delivered' | 'cancelled';
     paymentMethod: PaymentMethod;
     paymentStatus: 'unpaid' | 'partial' | 'paid';
+    paidAmount: number;
+    remainingAmount: number;
     notes: string;
     deliveryDate: Date;
     createdBy: Types.ObjectId;

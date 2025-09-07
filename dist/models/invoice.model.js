@@ -29,6 +29,8 @@ let Invoice = class Invoice extends mongoose_2.Document {
     status;
     paymentMethod;
     paymentStatus;
+    paidAmount;
+    remainingAmount;
     notes;
     deliveryDate;
     createdBy;
@@ -97,6 +99,14 @@ __decorate([
     (0, mongoose_1.Prop)({ default: 'unpaid' }),
     __metadata("design:type", String)
 ], Invoice.prototype, "paymentStatus", void 0);
+__decorate([
+    (0, mongoose_1.Prop)({ default: 0 }),
+    __metadata("design:type", Number)
+], Invoice.prototype, "paidAmount", void 0);
+__decorate([
+    (0, mongoose_1.Prop)({ default: 0 }),
+    __metadata("design:type", Number)
+], Invoice.prototype, "remainingAmount", void 0);
 __decorate([
     (0, mongoose_1.Prop)(),
     __metadata("design:type", String)

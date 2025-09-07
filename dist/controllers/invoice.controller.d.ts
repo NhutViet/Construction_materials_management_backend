@@ -1,5 +1,5 @@
 import { InvoiceService } from '../services/invoice.service';
-import { CreateInvoiceDto, UpdateInvoiceDto, UpdateInvoiceStatusDto, UpdatePaymentStatusDto, InvoiceQueryDto } from '../dto/invoice.dto';
+import { CreateInvoiceDto, UpdateInvoiceDto, UpdateInvoiceStatusDto, UpdatePaymentStatusDto, InvoiceQueryDto, PaymentDto } from '../dto/invoice.dto';
 import { PaymentMethod } from '../constants/payment.constants';
 export declare class InvoiceController {
     private readonly invoiceService;
@@ -70,6 +70,8 @@ export declare class InvoiceController {
     update(id: string, updateInvoiceDto: UpdateInvoiceDto, user: any): Promise<import("../models/invoice.model").Invoice>;
     updateStatus(id: string, updateStatusDto: UpdateInvoiceStatusDto, user: any): Promise<import("../models/invoice.model").Invoice>;
     updatePaymentStatus(id: string, updatePaymentDto: UpdatePaymentStatusDto, user: any): Promise<import("../models/invoice.model").Invoice>;
+    makePayment(id: string, paymentDto: PaymentDto, user: any): Promise<import("../models/invoice.model").Invoice>;
+    debugInvoice(id: string, user: any): Promise<import("../models/invoice.model").Invoice>;
     remove(id: string, user: any): Promise<void>;
     getInvoiceForPrint(id: string, user: any): Promise<import("../models/invoice.model").Invoice>;
     sendInvoiceByEmail(id: string, emailData: {

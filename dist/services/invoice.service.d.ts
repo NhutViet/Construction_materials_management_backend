@@ -1,7 +1,7 @@
 import { Model } from 'mongoose';
 import { Invoice } from '../models/invoice.model';
 import { Material } from '../models/material.model';
-import { CreateInvoiceDto, UpdateInvoiceDto, UpdateInvoiceStatusDto, UpdatePaymentStatusDto, InvoiceQueryDto } from '../dto/invoice.dto';
+import { CreateInvoiceDto, UpdateInvoiceDto, UpdateInvoiceStatusDto, UpdatePaymentStatusDto, InvoiceQueryDto, PaymentDto } from '../dto/invoice.dto';
 export declare class InvoiceService {
     private invoiceModel;
     private materialModel;
@@ -9,6 +9,7 @@ export declare class InvoiceService {
     constructor(invoiceModel: Model<Invoice>, materialModel: Model<Material>);
     private generateInvoiceNumber;
     private calculateInvoiceValues;
+    private updateMaterialInventory;
     create(createInvoiceDto: CreateInvoiceDto, userId: string): Promise<Invoice>;
     findAll(query: InvoiceQueryDto, userId: string): Promise<{
         invoices: Invoice[];
@@ -20,6 +21,7 @@ export declare class InvoiceService {
     findByInvoiceNumber(invoiceNumber: string, userId: string): Promise<Invoice>;
     update(id: string, updateInvoiceDto: UpdateInvoiceDto, userId: string): Promise<Invoice>;
     updateStatus(id: string, updateStatusDto: UpdateInvoiceStatusDto, userId: string): Promise<Invoice>;
+    makePayment(id: string, paymentDto: PaymentDto, userId: string): Promise<Invoice>;
     updatePaymentStatus(id: string, updatePaymentDto: UpdatePaymentStatusDto, userId: string): Promise<Invoice>;
     remove(id: string, userId: string): Promise<void>;
     getStatistics(userId: string, startDate?: string, endDate?: string): Promise<{
