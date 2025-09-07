@@ -21,6 +21,8 @@ export declare class CreateInvoiceDto {
     deliveryDate?: string;
     paymentMethod?: PaymentMethod;
     paymentStatus?: string;
+    paidAmount?: number;
+    remainingAmount?: number;
 }
 export declare class UpdateInvoiceDto {
     customerName?: string;
@@ -34,6 +36,8 @@ export declare class UpdateInvoiceDto {
     paymentMethod?: PaymentMethod;
     status?: string;
     paymentStatus?: string;
+    paidAmount?: number;
+    remainingAmount?: number;
 }
 export declare class UpdateInvoiceStatusDto {
     status: string;
@@ -42,7 +46,13 @@ export declare class UpdateInvoiceStatusDto {
 export declare class UpdatePaymentStatusDto {
     paymentStatus: string;
     paidAmount?: number;
+    remainingAmount?: number;
     notes?: string;
+}
+export declare class PaymentDto {
+    amount: number;
+    notes?: string;
+    paymentMethod?: PaymentMethod;
 }
 export declare class InvoiceQueryDto {
     status?: string;

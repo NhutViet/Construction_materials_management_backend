@@ -60,6 +60,24 @@ let InvoiceService = InvoiceService_1 = class InvoiceService {
             totalAmount
         };
     }
+    async updateMaterialInventory(items, operation) {
+        this.logger.log(`🔄 Cập nhật tồn kho vật liệu - Thao tác: ${operation}`);
+        for (const item of items) {
+            const material = await this.materialModel.findById(item.materialId);
+            if (!material) {
+                this.logger.warn(`⚠️ Không tìm thấy vật liệu với ID: ${item.materialId}`);
+                continue;
+            }
+            const quantityChange = operation === 'increase' ? item.quantity : -item.quantity;
+            const newQuantity = material.quantity + quantityChange;
+            if (newQuantity < 0) {
+                this.logger.warn(`⚠️ Số lượng tồn kho không thể âm cho vật liệu ${material.name}. Bỏ qua cập nhật.`);
+                continue;
+            }
+            await this.materialModel.findByIdAndUpdate(item.materialId, { quantity: newQuantity }, { new: true });
+            this.logger.log(`📦 Cập nhật tồn kho ${material.name}: ${material.quantity} → ${newQuantity} (${operation} ${item.quantity})`);
+        }
+    }
     async create(createInvoiceDto, userId) {
         this.logger.log(`Tạo hoá đơn mới cho khách hàng: ${createInvoiceDto.customerName}`);
         if (createInvoiceDto.paymentMethod === payment_constants_1.PaymentMethod.DEBT) {
@@ -86,6 +104,9 @@ let InvoiceService = InvoiceService_1 = class InvoiceService {
             if (material.userId.toString() !== userId) {
                 throw new common_1.ForbiddenException(`Bạn không có quyền sử dụng vật liệu ${material.name}`);
             }
+            if (material.quantity < item.quantity) {
+                throw new common_1.BadRequestException(`Không đủ tồn kho cho vật liệu "${material.name}". Tồn kho hiện tại: ${material.quantity}, yêu cầu: ${item.quantity}`);
+            }
             return {
                 materialId: item.materialId,
                 materialName: material.name,
@@ -97,15 +118,31 @@ let InvoiceService = InvoiceService_1 = class InvoiceService {
         }));
         const values = this.calculateInvoiceValues(updatedItems, createInvoiceDto.taxRate || 0, createInvoiceDto.discountRate || 0);
         const invoiceNumber = await this.generateInvoiceNumber();
+        let paidAmount = 0;
+        if (createInvoiceDto.paymentStatus === 'paid') {
+            paidAmount = values.totalAmount;
+        }
+        else if (createInvoiceDto.paymentStatus === 'partial' && createInvoiceDto.paidAmount) {
+            paidAmount = createInvoiceDto.paidAmount;
+        }
+        const remainingAmount = values.totalAmount - paidAmount;
+        this.logger.log(`🔍 Debug tạo hoá đơn:`);
+        this.logger.log(`  - totalAmount: ${values.totalAmount}`);
+        this.logger.log(`  - paidAmount: ${paidAmount}`);
+        this.logger.log(`  - remainingAmount: ${remainingAmount}`);
+        this.logger.log(`  - paymentStatus: ${createInvoiceDto.paymentStatus}`);
         const invoice = new this.invoiceModel({
             ...createInvoiceDto,
             invoiceNumber,
             items: updatedItems,
             ...values,
+            paidAmount,
+            remainingAmount,
             createdBy: new mongoose_2.Types.ObjectId(userId),
             customerId: new mongoose_2.Types.ObjectId(userId),
         });
         const savedInvoice = await invoice.save();
+        await this.updateMaterialInventory(updatedItems, 'decrease');
         this.logger.log(`Hoá đơn ${invoiceNumber} đã được tạo thành công`);
         return savedInvoice;
     }
@@ -191,14 +228,19 @@ let InvoiceService = InvoiceService_1 = class InvoiceService {
         if (!invoice) {
             throw new common_1.ForbiddenException('Bạn không có quyền cập nhật hoá đơn này');
         }
+        let updatedItems = [];
         if (updateInvoiceDto.items) {
-            const updatedItems = await Promise.all(updateInvoiceDto.items.map(async (item) => {
+            await this.updateMaterialInventory(invoice.items, 'increase');
+            updatedItems = await Promise.all(updateInvoiceDto.items.map(async (item) => {
                 const material = await this.materialModel.findById(item.materialId);
                 if (!material) {
                     throw new common_1.NotFoundException(`Vật liệu với ID ${item.materialId} không tồn tại`);
                 }
                 if (material.userId.toString() !== userId) {
                     throw new common_1.ForbiddenException(`Bạn không có quyền sử dụng vật liệu ${material.name}`);
+                }
+                if (material.quantity < item.quantity) {
+                    throw new common_1.BadRequestException(`Không đủ tồn kho cho vật liệu "${material.name}". Tồn kho hiện tại: ${material.quantity}, yêu cầu: ${item.quantity}`);
                 }
                 return {
                     materialId: item.materialId,
@@ -210,10 +252,12 @@ let InvoiceService = InvoiceService_1 = class InvoiceService {
                 };
             }));
             const values = this.calculateInvoiceValues(updatedItems, updateInvoiceDto.taxRate || invoice.taxRate, updateInvoiceDto.discountRate || invoice.discountRate);
+            const newRemainingAmount = values.totalAmount - (updateInvoiceDto.paidAmount || invoice.paidAmount);
             updateInvoiceDto = {
                 ...updateInvoiceDto,
                 items: updatedItems,
-                ...values
+                ...values,
+                remainingAmount: newRemainingAmount
             };
         }
         const updatedInvoice = await this.invoiceModel
@@ -224,6 +268,9 @@ let InvoiceService = InvoiceService_1 = class InvoiceService {
             .exec();
         if (!updatedInvoice) {
             throw new common_1.NotFoundException(`Không thể cập nhật hoá đơn với ID ${id}`);
+        }
+        if (updateInvoiceDto.items && updatedItems.length > 0) {
+            await this.updateMaterialInventory(updatedItems, 'decrease');
         }
         this.logger.log(`Hoá đơn ${id} đã được cập nhật thành công cho user: ${userId}`);
         return updatedInvoice;
@@ -259,6 +306,61 @@ let InvoiceService = InvoiceService_1 = class InvoiceService {
         this.logger.log(`Trạng thái hoá đơn ${id} đã được cập nhật thành: ${updateStatusDto.status} cho user: ${userId}`);
         return updatedInvoice;
     }
+    async makePayment(id, paymentDto, userId) {
+        this.logger.log(`💳 Thanh toán ${paymentDto.amount} cho hoá đơn ${id} bởi user: ${userId}`);
+        const invoice = await this.invoiceModel
+            .findOne({ _id: id, isDeleted: false, createdBy: new mongoose_2.Types.ObjectId(userId) })
+            .exec();
+        if (!invoice) {
+            throw new common_1.ForbiddenException('Bạn không có quyền thanh toán hoá đơn này');
+        }
+        if (paymentDto.amount <= 0) {
+            throw new common_1.BadRequestException('Số tiền thanh toán phải lớn hơn 0');
+        }
+        this.logger.log(`🔍 Debug thanh toán - Hoá đơn ${id}:`);
+        this.logger.log(`  - totalAmount: ${invoice.totalAmount}`);
+        this.logger.log(`  - paidAmount: ${invoice.paidAmount}`);
+        this.logger.log(`  - remainingAmount: ${invoice.remainingAmount}`);
+        this.logger.log(`  - paymentDto.amount: ${paymentDto.amount}`);
+        if (invoice.remainingAmount <= 0) {
+            throw new common_1.BadRequestException('Hoá đơn đã được thanh toán đầy đủ, không thể thanh toán thêm');
+        }
+        if (paymentDto.amount > invoice.remainingAmount) {
+            throw new common_1.BadRequestException(`Số tiền thanh toán (${paymentDto.amount}) không thể vượt quá số tiền còn lại (${invoice.remainingAmount})`);
+        }
+        const newPaidAmount = invoice.paidAmount + paymentDto.amount;
+        const newRemainingAmount = invoice.totalAmount - newPaidAmount;
+        let newPaymentStatus;
+        if (newRemainingAmount === 0) {
+            newPaymentStatus = 'paid';
+        }
+        else if (newPaidAmount > 0) {
+            newPaymentStatus = 'partial';
+        }
+        else {
+            newPaymentStatus = 'unpaid';
+        }
+        const updateData = {
+            paidAmount: newPaidAmount,
+            remainingAmount: newRemainingAmount,
+            paymentStatus: newPaymentStatus,
+            notes: paymentDto.notes || invoice.notes
+        };
+        if (paymentDto.paymentMethod) {
+            updateData.paymentMethod = paymentDto.paymentMethod;
+        }
+        const updatedInvoice = await this.invoiceModel
+            .findByIdAndUpdate(id, updateData, { new: true })
+            .populate('customerId', 'name email')
+            .populate('createdBy', 'name email')
+            .populate('approvedBy', 'name email')
+            .exec();
+        if (!updatedInvoice) {
+            throw new common_1.NotFoundException(`Không thể cập nhật thanh toán cho hoá đơn với ID ${id}`);
+        }
+        this.logger.log(`✅ Thanh toán thành công: ${paymentDto.amount} cho hoá đơn ${id}. Số tiền còn lại: ${newRemainingAmount}`);
+        return updatedInvoice;
+    }
     async updatePaymentStatus(id, updatePaymentDto, userId) {
         this.logger.log(`Cập nhật trạng thái thanh toán hoá đơn ${id} thành: ${updatePaymentDto.paymentStatus} cho user: ${userId}`);
         const invoice = await this.invoiceModel
@@ -267,10 +369,54 @@ let InvoiceService = InvoiceService_1 = class InvoiceService {
         if (!invoice) {
             throw new common_1.ForbiddenException('Bạn không có quyền cập nhật hoá đơn này');
         }
+        if (updatePaymentDto.paidAmount !== undefined) {
+            if (updatePaymentDto.paidAmount < 0) {
+                throw new common_1.BadRequestException('Số tiền đã trả không thể âm');
+            }
+            if (updatePaymentDto.paidAmount > invoice.totalAmount) {
+                throw new common_1.BadRequestException('Số tiền đã trả không thể vượt quá tổng tiền hoá đơn');
+            }
+        }
+        if (updatePaymentDto.remainingAmount !== undefined) {
+            if (updatePaymentDto.remainingAmount < 0) {
+                throw new common_1.BadRequestException('Số tiền còn lại không thể âm');
+            }
+            if (updatePaymentDto.remainingAmount > invoice.totalAmount) {
+                throw new common_1.BadRequestException('Số tiền còn lại không thể vượt quá tổng tiền hoá đơn');
+            }
+        }
         const updateData = {
             paymentStatus: updatePaymentDto.paymentStatus,
             notes: updatePaymentDto.notes
         };
+        if (updatePaymentDto.paidAmount !== undefined) {
+            updateData.paidAmount = updatePaymentDto.paidAmount;
+            updateData.remainingAmount = invoice.totalAmount - updatePaymentDto.paidAmount;
+        }
+        if (updatePaymentDto.paymentStatus === undefined && updatePaymentDto.paidAmount !== undefined) {
+            if (updatePaymentDto.paidAmount === 0) {
+                updateData.paymentStatus = 'unpaid';
+            }
+            else if (updatePaymentDto.paidAmount >= invoice.totalAmount) {
+                updateData.paymentStatus = 'paid';
+            }
+            else {
+                updateData.paymentStatus = 'partial';
+            }
+        }
+        if (updatePaymentDto.remainingAmount !== undefined && updatePaymentDto.paidAmount === undefined) {
+            updateData.paidAmount = invoice.totalAmount - updatePaymentDto.remainingAmount;
+            updateData.remainingAmount = updatePaymentDto.remainingAmount;
+            if (updateData.paidAmount === 0) {
+                updateData.paymentStatus = 'unpaid';
+            }
+            else if (updateData.paidAmount >= invoice.totalAmount) {
+                updateData.paymentStatus = 'paid';
+            }
+            else {
+                updateData.paymentStatus = 'partial';
+            }
+        }
         const updatedInvoice = await this.invoiceModel
             .findByIdAndUpdate(id, updateData, { new: true })
             .populate('customerId', 'name email')
@@ -294,6 +440,7 @@ let InvoiceService = InvoiceService_1 = class InvoiceService {
         if (invoice.status === 'delivered' || invoice.paymentStatus === 'paid') {
             throw new common_1.BadRequestException('Không thể xóa hoá đơn đã hoàn thành hoặc đã thanh toán');
         }
+        await this.updateMaterialInventory(invoice.items, 'increase');
         await this.invoiceModel.findByIdAndUpdate(id, { isDeleted: true });
         this.logger.log(`Hoá đơn ${id} đã được xóa thành công cho user: ${userId}`);
     }

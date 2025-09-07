@@ -9,7 +9,7 @@ var __metadata = (this && this.__metadata) || function (k, v) {
     if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.InvoiceQueryDto = exports.UpdatePaymentStatusDto = exports.UpdateInvoiceStatusDto = exports.UpdateInvoiceDto = exports.CreateInvoiceDto = exports.CreateInvoiceItemDto = exports.InvoiceItemDto = void 0;
+exports.InvoiceQueryDto = exports.PaymentDto = exports.UpdatePaymentStatusDto = exports.UpdateInvoiceStatusDto = exports.UpdateInvoiceDto = exports.CreateInvoiceDto = exports.CreateInvoiceItemDto = exports.InvoiceItemDto = void 0;
 const class_validator_1 = require("class-validator");
 const class_transformer_1 = require("class-transformer");
 const payment_constants_1 = require("../constants/payment.constants");
@@ -71,6 +71,8 @@ class CreateInvoiceDto {
     deliveryDate;
     paymentMethod;
     paymentStatus;
+    paidAmount;
+    remainingAmount;
 }
 exports.CreateInvoiceDto = CreateInvoiceDto;
 __decorate([
@@ -125,6 +127,18 @@ __decorate([
     (0, class_validator_1.IsEnum)(['unpaid', 'partial', 'paid']),
     __metadata("design:type", String)
 ], CreateInvoiceDto.prototype, "paymentStatus", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsNumber)(),
+    (0, class_validator_1.Min)(0),
+    __metadata("design:type", Number)
+], CreateInvoiceDto.prototype, "paidAmount", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsNumber)(),
+    (0, class_validator_1.Min)(0),
+    __metadata("design:type", Number)
+], CreateInvoiceDto.prototype, "remainingAmount", void 0);
 class UpdateInvoiceDto {
     customerName;
     customerPhone;
@@ -137,6 +151,8 @@ class UpdateInvoiceDto {
     paymentMethod;
     status;
     paymentStatus;
+    paidAmount;
+    remainingAmount;
 }
 exports.UpdateInvoiceDto = UpdateInvoiceDto;
 __decorate([
@@ -198,6 +214,18 @@ __decorate([
     (0, class_validator_1.IsEnum)(['unpaid', 'partial', 'paid']),
     __metadata("design:type", String)
 ], UpdateInvoiceDto.prototype, "paymentStatus", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsNumber)(),
+    (0, class_validator_1.Min)(0),
+    __metadata("design:type", Number)
+], UpdateInvoiceDto.prototype, "paidAmount", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsNumber)(),
+    (0, class_validator_1.Min)(0),
+    __metadata("design:type", Number)
+], UpdateInvoiceDto.prototype, "remainingAmount", void 0);
 class UpdateInvoiceStatusDto {
     status;
     notes;
@@ -215,6 +243,7 @@ __decorate([
 class UpdatePaymentStatusDto {
     paymentStatus;
     paidAmount;
+    remainingAmount;
     notes;
 }
 exports.UpdatePaymentStatusDto = UpdatePaymentStatusDto;
@@ -230,9 +259,36 @@ __decorate([
 ], UpdatePaymentStatusDto.prototype, "paidAmount", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsNumber)(),
+    (0, class_validator_1.Min)(0),
+    __metadata("design:type", Number)
+], UpdatePaymentStatusDto.prototype, "remainingAmount", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.IsString)(),
     __metadata("design:type", String)
 ], UpdatePaymentStatusDto.prototype, "notes", void 0);
+class PaymentDto {
+    amount;
+    notes;
+    paymentMethod;
+}
+exports.PaymentDto = PaymentDto;
+__decorate([
+    (0, class_validator_1.IsNumber)(),
+    (0, class_validator_1.Min)(0),
+    __metadata("design:type", Number)
+], PaymentDto.prototype, "amount", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], PaymentDto.prototype, "notes", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsEnum)(payment_constants_1.PaymentMethod),
+    __metadata("design:type", String)
+], PaymentDto.prototype, "paymentMethod", void 0);
 class InvoiceQueryDto {
     status;
     paymentStatus;

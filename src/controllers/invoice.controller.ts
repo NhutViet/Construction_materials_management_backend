@@ -13,7 +13,7 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { InvoiceService } from '../services/invoice.service';
-import { CreateInvoiceDto, UpdateInvoiceDto, UpdateInvoiceStatusDto, UpdatePaymentStatusDto, InvoiceQueryDto } from '../dto/invoice.dto';
+import { CreateInvoiceDto, UpdateInvoiceDto, UpdateInvoiceStatusDto, UpdatePaymentStatusDto, InvoiceQueryDto, PaymentDto } from '../dto/invoice.dto';
 import { JwtAuthGuard } from '../guards/jwt-auth.guard';
 import { CurrentUser } from '../decorators/current-user.decorator';
 import { PaymentMethod, PAYMENT_METHOD_LABELS } from '../constants/payment.constants';
@@ -132,6 +132,23 @@ export class InvoiceController {
   ) {
     this.logger.log(`💳 PATCH /invoices/${id}/payment-status - Cập nhật trạng thái thanh toán thành: ${updatePaymentDto.paymentStatus} cho user: ${user.id}`);
     return this.invoiceService.updatePaymentStatus(id, updatePaymentDto, user.id);
+  }
+
+  @Post(':id/payment')
+  makePayment(
+    @Param('id') id: string,
+    @Body() paymentDto: PaymentDto,
+    @CurrentUser() user: any
+  ) {
+    this.logger.log(`💰 POST /invoices/${id}/payment - Thanh toán ${paymentDto.amount} cho hoá đơn ${id} bởi user: ${user.id}`);
+    return this.invoiceService.makePayment(id, paymentDto, user.id);
+  }
+
+  // API debug để kiểm tra thông tin hoá đơn
+  @Get(':id/debug')
+  debugInvoice(@Param('id') id: string, @CurrentUser() user: any) {
+    this.logger.log(`🔍 GET /invoices/${id}/debug - Debug thông tin hoá đơn ${id} cho user: ${user.id}`);
+    return this.invoiceService.findOne(id, user.id);
   }
 
   @Delete(':id')

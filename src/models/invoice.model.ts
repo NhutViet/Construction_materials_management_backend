@@ -58,6 +58,12 @@ export class Invoice extends Document {
   @Prop({ default: 'unpaid' })
   paymentStatus: 'unpaid' | 'partial' | 'paid'; // Trạng thái thanh toán
 
+  @Prop({ default: 0 })
+  paidAmount: number; // Số tiền đã trả
+
+  @Prop({ default: 0 })
+  remainingAmount: number; // Số tiền còn lại (totalAmount - paidAmount)
+
   @Prop()
   notes: string; // Ghi chú
 

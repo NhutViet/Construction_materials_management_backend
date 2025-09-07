@@ -94,6 +94,14 @@ let InvoiceController = InvoiceController_1 = class InvoiceController {
         this.logger.log(`💳 PATCH /invoices/${id}/payment-status - Cập nhật trạng thái thanh toán thành: ${updatePaymentDto.paymentStatus} cho user: ${user.id}`);
         return this.invoiceService.updatePaymentStatus(id, updatePaymentDto, user.id);
     }
+    makePayment(id, paymentDto, user) {
+        this.logger.log(`💰 POST /invoices/${id}/payment - Thanh toán ${paymentDto.amount} cho hoá đơn ${id} bởi user: ${user.id}`);
+        return this.invoiceService.makePayment(id, paymentDto, user.id);
+    }
+    debugInvoice(id, user) {
+        this.logger.log(`🔍 GET /invoices/${id}/debug - Debug thông tin hoá đơn ${id} cho user: ${user.id}`);
+        return this.invoiceService.findOne(id, user.id);
+    }
     remove(id, user) {
         this.logger.log(`🗑️ DELETE /invoices/${id} - Xóa hoá đơn cho user: ${user.id}`);
         return this.invoiceService.remove(id, user.id);
@@ -229,6 +237,23 @@ __decorate([
     __metadata("design:paramtypes", [String, invoice_dto_1.UpdatePaymentStatusDto, Object]),
     __metadata("design:returntype", void 0)
 ], InvoiceController.prototype, "updatePaymentStatus", null);
+__decorate([
+    (0, common_1.Post)(':id/payment'),
+    __param(0, (0, common_1.Param)('id')),
+    __param(1, (0, common_1.Body)()),
+    __param(2, (0, current_user_decorator_1.CurrentUser)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, invoice_dto_1.PaymentDto, Object]),
+    __metadata("design:returntype", void 0)
+], InvoiceController.prototype, "makePayment", null);
+__decorate([
+    (0, common_1.Get)(':id/debug'),
+    __param(0, (0, common_1.Param)('id')),
+    __param(1, (0, current_user_decorator_1.CurrentUser)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, Object]),
+    __metadata("design:returntype", void 0)
+], InvoiceController.prototype, "debugInvoice", null);
 __decorate([
     (0, common_1.Delete)(':id'),
     __param(0, (0, common_1.Param)('id')),
