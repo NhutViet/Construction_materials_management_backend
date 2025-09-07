@@ -13,6 +13,15 @@ export class User {
 
   @Prop({ required: true })
   fullname: string;
+
+  @Prop({ required: false })
+  phoneNumber?: string;
+
+  @Prop({ required: false })
+  bankNumber?: string;
+
+  @Prop({ required: false })
+  bankName?: string;
 }
 
 export const UserSchema = SchemaFactory.createForClass(User);

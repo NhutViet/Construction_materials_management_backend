@@ -1,8 +1,7 @@
 import { Model } from 'mongoose';
 import { JwtService } from '@nestjs/jwt';
 import { UserDocument } from '../models/user.model';
-import { LoginDto } from '../dto/auth.dto';
-import { RegisterDto } from '../dto/auth.dto';
+import { LoginDto, RegisterDto, UpdateProfileDto } from '../dto/auth.dto';
 export declare class AuthService {
     private userModel;
     private jwtService;
@@ -10,6 +9,9 @@ export declare class AuthService {
     register(registerDto: RegisterDto): Promise<{
         username: string;
         fullname: string;
+        phoneNumber?: string;
+        bankNumber?: string;
+        bankName?: string;
         _id: unknown;
         $locals: Record<string, unknown>;
         $op: "save" | "validate" | "remove" | null;
@@ -27,6 +29,9 @@ export declare class AuthService {
         user: {
             username: string;
             fullname: string;
+            phoneNumber?: string;
+            bankNumber?: string;
+            bankName?: string;
             _id: unknown;
             $locals: Record<string, unknown>;
             $op: "save" | "validate" | "remove" | null;
@@ -43,4 +48,42 @@ export declare class AuthService {
         access_token: string;
     }>;
     validateUser(userId: string): Promise<any>;
+    getProfile(userId: string): Promise<{
+        username: string;
+        fullname: string;
+        phoneNumber?: string;
+        bankNumber?: string;
+        bankName?: string;
+        _id: unknown;
+        $locals: Record<string, unknown>;
+        $op: "save" | "validate" | "remove" | null;
+        $where: Record<string, unknown>;
+        baseModelName?: string;
+        collection: import("mongoose").Collection;
+        db: import("mongoose").Connection;
+        errors?: import("mongoose").Error.ValidationError;
+        id?: any;
+        isNew: boolean;
+        schema: import("mongoose").Schema;
+        __v: number;
+    }>;
+    updateProfile(userId: string, updateProfileDto: UpdateProfileDto): Promise<{
+        username: string;
+        fullname: string;
+        phoneNumber?: string;
+        bankNumber?: string;
+        bankName?: string;
+        _id: unknown;
+        $locals: Record<string, unknown>;
+        $op: "save" | "validate" | "remove" | null;
+        $where: Record<string, unknown>;
+        baseModelName?: string;
+        collection: import("mongoose").Collection;
+        db: import("mongoose").Connection;
+        errors?: import("mongoose").Error.ValidationError;
+        id?: any;
+        isNew: boolean;
+        schema: import("mongoose").Schema;
+        __v: number;
+    }>;
 }

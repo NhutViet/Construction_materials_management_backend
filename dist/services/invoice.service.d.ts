@@ -9,6 +9,7 @@ export declare class InvoiceService {
     constructor(invoiceModel: Model<Invoice>, materialModel: Model<Material>);
     private generateInvoiceNumber;
     private calculateInvoiceValues;
+    private checkInventoryAvailability;
     private updateMaterialInventory;
     create(createInvoiceDto: CreateInvoiceDto, userId: string): Promise<Invoice>;
     findAll(query: InvoiceQueryDto, userId: string): Promise<{

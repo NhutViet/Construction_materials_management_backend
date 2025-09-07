@@ -60,6 +60,22 @@ let InvoiceService = InvoiceService_1 = class InvoiceService {
             totalAmount
         };
     }
+    async checkInventoryAvailability(items, userId) {
+        this.logger.log(`🔍 Kiểm tra tồn kho cho ${items.length} vật liệu`);
+        for (const item of items) {
+            const material = await this.materialModel.findById(item.materialId);
+            if (!material) {
+                throw new common_1.NotFoundException(`Vật liệu với ID ${item.materialId} không tồn tại`);
+            }
+            if (material.userId.toString() !== userId) {
+                throw new common_1.ForbiddenException(`Bạn không có quyền sử dụng vật liệu ${material.name}`);
+            }
+            if (material.quantity < item.quantity) {
+                throw new common_1.BadRequestException(`Không đủ tồn kho cho vật liệu "${material.name}". Tồn kho hiện tại: ${material.quantity}, yêu cầu: ${item.quantity}`);
+            }
+            this.logger.log(`✅ Vật liệu ${material.name}: Tồn kho ${material.quantity} >= Yêu cầu ${item.quantity}`);
+        }
+    }
     async updateMaterialInventory(items, operation) {
         this.logger.log(`🔄 Cập nhật tồn kho vật liệu - Thao tác: ${operation}`);
         for (const item of items) {
@@ -96,16 +112,11 @@ let InvoiceService = InvoiceService_1 = class InvoiceService {
                 createInvoiceDto.paymentStatus = 'unpaid';
             }
         }
+        await this.checkInventoryAvailability(createInvoiceDto.items, userId);
         const updatedItems = await Promise.all(createInvoiceDto.items.map(async (item) => {
             const material = await this.materialModel.findById(item.materialId);
             if (!material) {
                 throw new common_1.NotFoundException(`Vật liệu với ID ${item.materialId} không tồn tại`);
-            }
-            if (material.userId.toString() !== userId) {
-                throw new common_1.ForbiddenException(`Bạn không có quyền sử dụng vật liệu ${material.name}`);
-            }
-            if (material.quantity < item.quantity) {
-                throw new common_1.BadRequestException(`Không đủ tồn kho cho vật liệu "${material.name}". Tồn kho hiện tại: ${material.quantity}, yêu cầu: ${item.quantity}`);
             }
             return {
                 materialId: item.materialId,
@@ -231,16 +242,11 @@ let InvoiceService = InvoiceService_1 = class InvoiceService {
         let updatedItems = [];
         if (updateInvoiceDto.items) {
             await this.updateMaterialInventory(invoice.items, 'increase');
+            await this.checkInventoryAvailability(updateInvoiceDto.items, userId);
             updatedItems = await Promise.all(updateInvoiceDto.items.map(async (item) => {
                 const material = await this.materialModel.findById(item.materialId);
                 if (!material) {
                     throw new common_1.NotFoundException(`Vật liệu với ID ${item.materialId} không tồn tại`);
-                }
-                if (material.userId.toString() !== userId) {
-                    throw new common_1.ForbiddenException(`Bạn không có quyền sử dụng vật liệu ${material.name}`);
-                }
-                if (material.quantity < item.quantity) {
-                    throw new common_1.BadRequestException(`Không đủ tồn kho cho vật liệu "${material.name}". Tồn kho hiện tại: ${material.quantity}, yêu cầu: ${item.quantity}`);
                 }
                 return {
                     materialId: item.materialId,
@@ -293,6 +299,11 @@ let InvoiceService = InvoiceService_1 = class InvoiceService {
         if (updateStatusDto.status === 'confirmed') {
             updateData.approvedBy = new mongoose_2.Types.ObjectId(userId);
             updateData.approvedAt = new Date();
+        }
+        if (updateStatusDto.status === 'cancelled') {
+            this.logger.log(`🔄 Hủy hoá đơn ${id} - Trả hàng về kho`);
+            await this.updateMaterialInventory(invoice.items, 'increase');
+            this.logger.log(`✅ Đã trả ${invoice.items.length} loại vật liệu về kho khi hủy hoá đơn ${id}`);
         }
         const updatedInvoice = await this.invoiceModel
             .findByIdAndUpdate(id, updateData, { new: true })
