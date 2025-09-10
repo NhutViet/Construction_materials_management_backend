@@ -17,6 +17,7 @@ const material_service_1 = require("./services/material.service");
 const material_controller_1 = require("./controllers/material.controller");
 const auth_module_1 = require("./modules/auth.module");
 const invoice_module_1 = require("./modules/invoice.module");
+const stock_in_module_1 = require("./modules/stock-in.module");
 let AppModule = class AppModule {
     onModuleInit() {
         console.log('🚀 Construction Materials Management Backend đã khởi động!');
@@ -46,6 +47,16 @@ let AppModule = class AppModule {
         console.log('   • GET    /invoices/paid - Hoá đơn đã thanh toán');
         console.log('   • PATCH  /invoices/:id/status - Cập nhật trạng thái');
         console.log('   • PATCH  /invoices/:id/payment-status - Cập nhật trạng thái thanh toán');
+        console.log('📥 Stock In (Nhập hàng):');
+        console.log('   • POST   /stock-in - Tạo phiếu nhập hàng mới');
+        console.log('   • GET    /stock-in - Lấy danh sách phiếu nhập hàng');
+        console.log('   • GET    /stock-in/:id - Lấy phiếu nhập hàng theo ID');
+        console.log('   • PUT    /stock-in/:id - Cập nhật phiếu nhập hàng');
+        console.log('   • DELETE /stock-in/:id - Xóa phiếu nhập hàng');
+        console.log('   • GET    /stock-in/materials - Lấy danh sách vật liệu để chọn');
+        console.log('   • GET    /stock-in/stats - Thống kê phiếu nhập hàng');
+        console.log('   • PUT    /stock-in/:id/payment-status - Cập nhật trạng thái thanh toán');
+        console.log('   • PUT    /stock-in/:id/status - Cập nhật trạng thái phiếu nhập');
         console.log('🌐 Server đang chạy tại: http://localhost:3000');
         console.log('⏰ Khởi động lúc:', new Date().toLocaleString('vi-VN'));
         console.log('='.repeat(60));
@@ -59,6 +70,7 @@ exports.AppModule = AppModule = __decorate([
             mongoose_1.MongooseModule.forFeature([{ name: material_model_1.Material.name, schema: material_model_1.MaterialSchema }]),
             auth_module_1.AuthModule,
             invoice_module_1.InvoiceModule,
+            stock_in_module_1.StockInModule,
         ],
         controllers: [app_controller_1.AppController, material_controller_1.MaterialController],
         providers: [app_service_1.AppService, material_service_1.MaterialService],
