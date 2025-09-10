@@ -8,6 +8,7 @@ import { MaterialService } from './services/material.service';
 import { MaterialController } from './controllers/material.controller';
 import { AuthModule } from './modules/auth.module';
 import { InvoiceModule } from './modules/invoice.module';
+import { StockInModule } from './modules/stock-in.module';
 
 @Module({
   imports: [
@@ -15,6 +16,7 @@ import { InvoiceModule } from './modules/invoice.module';
     MongooseModule.forFeature([{ name: Material.name, schema: MaterialSchema }]),
     AuthModule,
     InvoiceModule,
+    StockInModule,
   ],
   controllers: [AppController, MaterialController],
   providers: [AppService, MaterialService],
@@ -48,6 +50,16 @@ export class AppModule implements OnModuleInit {
     console.log('   • GET    /invoices/paid - Hoá đơn đã thanh toán');
     console.log('   • PATCH  /invoices/:id/status - Cập nhật trạng thái');
     console.log('   • PATCH  /invoices/:id/payment-status - Cập nhật trạng thái thanh toán');
+    console.log('📥 Stock In (Nhập hàng):');
+    console.log('   • POST   /stock-in - Tạo phiếu nhập hàng mới');
+    console.log('   • GET    /stock-in - Lấy danh sách phiếu nhập hàng');
+    console.log('   • GET    /stock-in/:id - Lấy phiếu nhập hàng theo ID');
+    console.log('   • PUT    /stock-in/:id - Cập nhật phiếu nhập hàng');
+    console.log('   • DELETE /stock-in/:id - Xóa phiếu nhập hàng');
+    console.log('   • GET    /stock-in/materials - Lấy danh sách vật liệu để chọn');
+    console.log('   • GET    /stock-in/stats - Thống kê phiếu nhập hàng');
+    console.log('   • PUT    /stock-in/:id/payment-status - Cập nhật trạng thái thanh toán');
+    console.log('   • PUT    /stock-in/:id/status - Cập nhật trạng thái phiếu nhập');
     console.log('🌐 Server đang chạy tại: http://localhost:3000');
     console.log('⏰ Khởi động lúc:', new Date().toLocaleString('vi-VN'));
     console.log('='.repeat(60));
