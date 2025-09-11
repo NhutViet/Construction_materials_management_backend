@@ -9,6 +9,7 @@ import { MaterialController } from './controllers/material.controller';
 import { AuthModule } from './modules/auth.module';
 import { InvoiceModule } from './modules/invoice.module';
 import { StockInModule } from './modules/stock-in.module';
+import { AnalyticsModule } from './modules/analytics.module';
 
 @Module({
   imports: [
@@ -17,6 +18,7 @@ import { StockInModule } from './modules/stock-in.module';
     AuthModule,
     InvoiceModule,
     StockInModule,
+    AnalyticsModule,
   ],
   controllers: [AppController, MaterialController],
   providers: [AppService, MaterialService],
@@ -60,6 +62,18 @@ export class AppModule implements OnModuleInit {
     console.log('   • GET    /stock-in/stats - Thống kê phiếu nhập hàng');
     console.log('   • PUT    /stock-in/:id/payment-status - Cập nhật trạng thái thanh toán');
     console.log('   • PUT    /stock-in/:id/status - Cập nhật trạng thái phiếu nhập');
+    console.log('📊 Analytics (Thống kê & Phân tích):');
+    console.log('   • GET    /analytics/dashboard - Dashboard tổng hợp');
+    console.log('   • GET    /analytics/revenue - Thống kê doanh thu');
+    console.log('   • GET    /analytics/payments - Thống kê thanh toán');
+    console.log('   • GET    /analytics/inventory - Thống kê tồn kho');
+    console.log('   • GET    /analytics/customers - Thống kê khách hàng');
+    console.log('   • GET    /analytics/customers/list - Danh sách khách hàng chi tiết');
+    console.log('   • GET    /analytics/stock-in - Thống kê nhập hàng');
+    console.log('   • GET    /analytics/trends - Thống kê xu hướng');
+    console.log('   • GET    /analytics/quick-stats - Thống kê nhanh');
+    console.log('   • GET    /analytics/alerts - Cảnh báo hệ thống');
+    console.log('   • GET    /analytics/reports/* - Báo cáo chi tiết');
     console.log('🌐 Server đang chạy tại: http://localhost:3000');
     console.log('⏰ Khởi động lúc:', new Date().toLocaleString('vi-VN'));
     console.log('='.repeat(60));

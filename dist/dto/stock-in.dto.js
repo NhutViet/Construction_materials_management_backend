@@ -246,7 +246,7 @@ class UpdateStockInStatusDto {
 }
 exports.UpdateStockInStatusDto = UpdateStockInStatusDto;
 __decorate([
-    (0, class_validator_1.IsEnum)(['pending', 'approved', 'rejected', 'completed']),
+    (0, class_validator_1.IsEnum)(['pending', 'approved', 'rejected']),
     __metadata("design:type", String)
 ], UpdateStockInStatusDto.prototype, "status", void 0);
 class StockInQueryDto {
@@ -272,7 +272,7 @@ __decorate([
 ], StockInQueryDto.prototype, "paymentStatus", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),
-    (0, class_validator_1.IsEnum)(['pending', 'approved', 'rejected', 'completed']),
+    (0, class_validator_1.IsEnum)(['pending', 'approved', 'rejected']),
     __metadata("design:type", String)
 ], StockInQueryDto.prototype, "status", void 0);
 __decorate([

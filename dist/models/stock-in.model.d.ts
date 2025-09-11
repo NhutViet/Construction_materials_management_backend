@@ -21,7 +21,7 @@ export declare class StockIn {
     paymentStatus: 'unpaid' | 'partial' | 'paid';
     paidAmount: number;
     remainingAmount: number;
-    status: 'pending' | 'approved' | 'rejected' | 'completed';
+    status: 'pending' | 'approved' | 'rejected';
     supplier: string;
     supplierPhone: string;
     supplierAddress: string;

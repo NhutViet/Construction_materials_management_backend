@@ -41,12 +41,12 @@ export declare class UpdatePaymentStatusDto {
     paidAmount: number;
 }
 export declare class UpdateStockInStatusDto {
-    status: 'pending' | 'approved' | 'rejected' | 'completed';
+    status: 'pending' | 'approved' | 'rejected';
 }
 export declare class StockInQueryDto {
     search?: string;
     paymentStatus?: 'unpaid' | 'partial' | 'paid';
-    status?: 'pending' | 'approved' | 'rejected' | 'completed';
+    status?: 'pending' | 'approved' | 'rejected';
     supplier?: string;
     startDate?: string;
     endDate?: string;
