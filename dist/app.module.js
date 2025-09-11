@@ -18,6 +18,7 @@ const material_controller_1 = require("./controllers/material.controller");
 const auth_module_1 = require("./modules/auth.module");
 const invoice_module_1 = require("./modules/invoice.module");
 const stock_in_module_1 = require("./modules/stock-in.module");
+const analytics_module_1 = require("./modules/analytics.module");
 let AppModule = class AppModule {
     onModuleInit() {
         console.log('🚀 Construction Materials Management Backend đã khởi động!');
@@ -57,6 +58,18 @@ let AppModule = class AppModule {
         console.log('   • GET    /stock-in/stats - Thống kê phiếu nhập hàng');
         console.log('   • PUT    /stock-in/:id/payment-status - Cập nhật trạng thái thanh toán');
         console.log('   • PUT    /stock-in/:id/status - Cập nhật trạng thái phiếu nhập');
+        console.log('📊 Analytics (Thống kê & Phân tích):');
+        console.log('   • GET    /analytics/dashboard - Dashboard tổng hợp');
+        console.log('   • GET    /analytics/revenue - Thống kê doanh thu');
+        console.log('   • GET    /analytics/payments - Thống kê thanh toán');
+        console.log('   • GET    /analytics/inventory - Thống kê tồn kho');
+        console.log('   • GET    /analytics/customers - Thống kê khách hàng');
+        console.log('   • GET    /analytics/customers/list - Danh sách khách hàng chi tiết');
+        console.log('   • GET    /analytics/stock-in - Thống kê nhập hàng');
+        console.log('   • GET    /analytics/trends - Thống kê xu hướng');
+        console.log('   • GET    /analytics/quick-stats - Thống kê nhanh');
+        console.log('   • GET    /analytics/alerts - Cảnh báo hệ thống');
+        console.log('   • GET    /analytics/reports/* - Báo cáo chi tiết');
         console.log('🌐 Server đang chạy tại: http://localhost:3000');
         console.log('⏰ Khởi động lúc:', new Date().toLocaleString('vi-VN'));
         console.log('='.repeat(60));
@@ -71,6 +84,7 @@ exports.AppModule = AppModule = __decorate([
             auth_module_1.AuthModule,
             invoice_module_1.InvoiceModule,
             stock_in_module_1.StockInModule,
+            analytics_module_1.AnalyticsModule,
         ],
         controllers: [app_controller_1.AppController, material_controller_1.MaterialController],
         providers: [app_service_1.AppService, material_service_1.MaterialService],

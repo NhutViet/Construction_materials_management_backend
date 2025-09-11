@@ -111,8 +111,8 @@ let StockInService = class StockInService {
     }
     async updateStockIn(id, updateStockInDto, userId) {
         const stockIn = await this.getStockInById(id, userId);
-        if (stockIn.status === 'approved' || stockIn.status === 'completed') {
-            throw new common_1.BadRequestException('Không thể chỉnh sửa phiếu nhập hàng đã được duyệt hoặc hoàn thành');
+        if (stockIn.status === 'approved') {
+            throw new common_1.BadRequestException('Không thể chỉnh sửa phiếu nhập hàng đã được duyệt');
         }
         let updateData = { ...updateStockInDto };
         if (updateStockInDto.subtotal !== undefined || updateStockInDto.taxAmount !== undefined || updateStockInDto.discountAmount !== undefined) {
@@ -194,8 +194,8 @@ let StockInService = class StockInService {
     }
     async deleteStockIn(id, userId) {
         const stockIn = await this.getStockInById(id, userId);
-        if (stockIn.status === 'approved' || stockIn.status === 'completed') {
-            throw new common_1.BadRequestException('Không thể xóa phiếu nhập hàng đã được duyệt hoặc hoàn thành');
+        if (stockIn.status === 'approved') {
+            throw new common_1.BadRequestException('Không thể xóa phiếu nhập hàng đã được duyệt');
         }
         await this.stockInModel.findByIdAndUpdate(id, {
             isDeleted: true,
