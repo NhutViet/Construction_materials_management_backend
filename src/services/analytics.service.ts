@@ -977,7 +977,7 @@ export class AnalyticsService {
     ] = await Promise.all([
       // Tổng quan nhập hàng
       this.stockInModel.aggregate([
-        { $match: { ...filter, isDeleted: false } },
+        { $match: { ...filter, isDeleted: false, status: { $ne: 'rejected' } } },
         {
           $group: {
             _id: null,
@@ -992,7 +992,7 @@ export class AnalyticsService {
 
       // Phân tích nhà cung cấp
       this.stockInModel.aggregate([
-        { $match: { ...filter, isDeleted: false, supplier: { $exists: true, $ne: null } } },
+        { $match: { ...filter, isDeleted: false, status: { $ne: 'rejected' }, supplier: { $exists: true, $ne: null } } },
         {
           $group: {
             _id: '$supplier',
@@ -1007,7 +1007,7 @@ export class AnalyticsService {
 
       // Phân tích trạng thái thanh toán
       this.stockInModel.aggregate([
-        { $match: { ...filter, isDeleted: false } },
+        { $match: { ...filter, isDeleted: false, status: { $ne: 'rejected' } } },
         {
           $group: {
             _id: '$paymentStatus',
@@ -1537,7 +1537,7 @@ export class AnalyticsService {
     ] = await Promise.all([
       // Tổng kết chung
       this.stockInModel.aggregate([
-        { $match: { ...filter, isDeleted: false } },
+        { $match: { ...filter, isDeleted: false, status: { $ne: 'rejected' } } },
         {
           $group: {
             _id: null,
@@ -1554,7 +1554,7 @@ export class AnalyticsService {
 
       // Đã thanh toán hoàn toàn
       this.stockInModel.aggregate([
-        { $match: { ...filter, isDeleted: false, paymentStatus: 'paid' } },
+        { $match: { ...filter, isDeleted: false, status: { $ne: 'rejected' }, paymentStatus: 'paid' } },
         {
           $group: {
             _id: null,
@@ -1568,7 +1568,7 @@ export class AnalyticsService {
 
       // Chưa thanh toán
       this.stockInModel.aggregate([
-        { $match: { ...filter, isDeleted: false, paymentStatus: 'unpaid' } },
+        { $match: { ...filter, isDeleted: false, status: { $ne: 'rejected' }, paymentStatus: 'unpaid' } },
         {
           $group: {
             _id: null,
@@ -1582,7 +1582,7 @@ export class AnalyticsService {
 
       // Thanh toán một phần
       this.stockInModel.aggregate([
-        { $match: { ...filter, isDeleted: false, paymentStatus: 'partial' } },
+        { $match: { ...filter, isDeleted: false, status: { $ne: 'rejected' }, paymentStatus: 'partial' } },
         {
           $group: {
             _id: null,
@@ -1599,7 +1599,7 @@ export class AnalyticsService {
 
       // Xu hướng thanh toán theo tháng
       this.stockInModel.aggregate([
-        { $match: { ...filter, isDeleted: false } },
+        { $match: { ...filter, isDeleted: false, status: { $ne: 'rejected' } } },
         {
           $group: {
             _id: {
@@ -1858,10 +1858,10 @@ export class AnalyticsService {
     const filter = this.buildDateFilter(userId, startDate, endDate, 'stockIn');
     
     const [totalStockIns, pendingCount, totalAmount] = await Promise.all([
-      this.stockInModel.countDocuments({ ...filter, isDeleted: false }),
+      this.stockInModel.countDocuments({ ...filter, isDeleted: false, status: { $ne: 'rejected' } }),
       this.stockInModel.countDocuments({ ...filter, isDeleted: false, status: 'pending' }),
       this.stockInModel.aggregate([
-        { $match: { ...filter, isDeleted: false } },
+        { $match: { ...filter, isDeleted: false, status: { $ne: 'rejected' } } },
         { $group: { _id: null, total: { $sum: '$totalAmount' } } }
       ])
     ]);
