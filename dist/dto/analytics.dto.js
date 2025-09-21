@@ -9,7 +9,7 @@ var __metadata = (this && this.__metadata) || function (k, v) {
     if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.DashboardDataDto = exports.TimeBasedAnalyticsDto = exports.StockInAnalyticsDto = exports.CustomerAnalyticsDto = exports.InventoryAnalyticsDto = exports.PaymentAnalyticsDto = exports.RevenueAnalyticsDto = exports.QuickStatsDto = exports.DateRangeDto = exports.AnalyticsQueryDto = void 0;
+exports.DashboardDataDto = exports.OverdueDebtReportDto = exports.PaymentHistoryAnalyticsDto = exports.DebtAnalyticsDto = exports.TimeBasedAnalyticsDto = exports.StockInAnalyticsDto = exports.CustomerAnalyticsDto = exports.InventoryAnalyticsDto = exports.PaymentAnalyticsDto = exports.RevenueAnalyticsDto = exports.QuickStatsDto = exports.DateRangeDto = exports.AnalyticsQueryDto = void 0;
 const class_validator_1 = require("class-validator");
 class AnalyticsQueryDto {
     startDate;
@@ -87,6 +87,10 @@ class PaymentAnalyticsDto {
     debtAnalysis;
     paymentMethodStats;
     overdueInvoices;
+    totalPaidAmount;
+    debtByCustomer;
+    paymentHistory;
+    summary;
 }
 exports.PaymentAnalyticsDto = PaymentAnalyticsDto;
 class InventoryAnalyticsDto {
@@ -124,6 +128,33 @@ class TimeBasedAnalyticsDto {
     yearOverYearComparison;
 }
 exports.TimeBasedAnalyticsDto = TimeBasedAnalyticsDto;
+class DebtAnalyticsDto {
+    debtOverview;
+    debtByCustomer;
+    debtByStatus;
+    debtByTimeRange;
+    topDebtCustomers;
+    debtAging;
+    summary;
+}
+exports.DebtAnalyticsDto = DebtAnalyticsDto;
+class PaymentHistoryAnalyticsDto {
+    paymentOverview;
+    paymentByMethod;
+    paymentByTimeRange;
+    paymentByCustomer;
+    recentPayments;
+    summary;
+}
+exports.PaymentHistoryAnalyticsDto = PaymentHistoryAnalyticsDto;
+class OverdueDebtReportDto {
+    overdueOverview;
+    overdueByCustomer;
+    overdueByTimeRange;
+    criticalOverdue;
+    summary;
+}
+exports.OverdueDebtReportDto = OverdueDebtReportDto;
 class DashboardDataDto {
     financialSummary;
     inventorySummary;

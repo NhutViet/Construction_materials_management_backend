@@ -20,6 +20,16 @@ export declare class AnalyticsController {
         debtAnalysis: any;
         paymentMethodStats: any[];
         overdueInvoices: any;
+        totalPaidAmount: any;
+        debtByCustomer: any[];
+        paymentHistory: any[];
+        summary: {
+            totalDebt: any;
+            totalPaid: any;
+            totalRevenue: any;
+            paymentRate: any;
+            debtRate: number;
+        };
     }>;
     getInventoryAnalytics(user: any): Promise<{
         inventoryOverview: any;
@@ -110,6 +120,78 @@ export declare class AnalyticsController {
         supplierAnalysis: any[];
         paymentStatusAnalysis: any[];
         processingTimeAnalysis: any[];
+        paymentSummary: {
+            summary: {
+                totalAmount: any;
+                totalPaid: any;
+                totalRemaining: any;
+                totalCount: any;
+                paymentRate: number;
+                debtRate: number;
+                avgAmount: any;
+                avgPaid: any;
+                avgRemaining: any;
+            };
+            paid: {
+                amount: any;
+                count: any;
+                avgAmount: any;
+                percentage: number;
+            };
+            unpaid: {
+                amount: any;
+                count: any;
+                avgAmount: any;
+                percentage: number;
+            };
+            partial: {
+                amount: any;
+                paidAmount: any;
+                remainingAmount: any;
+                count: any;
+                avgAmount: any;
+                avgPaid: any;
+                avgRemaining: any;
+                percentage: number;
+            };
+            trends: any[];
+        };
+    }>;
+    getStockInPaymentAnalytics(user: any, startDate?: string, endDate?: string): Promise<{
+        summary: {
+            totalAmount: any;
+            totalPaid: any;
+            totalRemaining: any;
+            totalCount: any;
+            paymentRate: number;
+            debtRate: number;
+            avgAmount: any;
+            avgPaid: any;
+            avgRemaining: any;
+        };
+        paid: {
+            amount: any;
+            count: any;
+            avgAmount: any;
+            percentage: number;
+        };
+        unpaid: {
+            amount: any;
+            count: any;
+            avgAmount: any;
+            percentage: number;
+        };
+        partial: {
+            amount: any;
+            paidAmount: any;
+            remainingAmount: any;
+            count: any;
+            avgAmount: any;
+            avgPaid: any;
+            avgRemaining: any;
+            percentage: number;
+        };
+        trends: any[];
     }>;
     getTimeBasedAnalytics(user: any, startDate?: string, endDate?: string): Promise<{
         dailyTrends: any[];
@@ -214,6 +296,42 @@ export declare class AnalyticsController {
         supplierAnalysis: any[];
         paymentStatusAnalysis: any[];
         processingTimeAnalysis: any[];
+        paymentSummary: {
+            summary: {
+                totalAmount: any;
+                totalPaid: any;
+                totalRemaining: any;
+                totalCount: any;
+                paymentRate: number;
+                debtRate: number;
+                avgAmount: any;
+                avgPaid: any;
+                avgRemaining: any;
+            };
+            paid: {
+                amount: any;
+                count: any;
+                avgAmount: any;
+                percentage: number;
+            };
+            unpaid: {
+                amount: any;
+                count: any;
+                avgAmount: any;
+                percentage: number;
+            };
+            partial: {
+                amount: any;
+                paidAmount: any;
+                remainingAmount: any;
+                count: any;
+                avgAmount: any;
+                avgPaid: any;
+                avgRemaining: any;
+                percentage: number;
+            };
+            trends: any[];
+        };
     }>;
     getQuickStats(user: any): Promise<{
         financialSummary: {
@@ -272,5 +390,97 @@ export declare class AnalyticsController {
             __v: number;
         })[];
         totalAlerts: number;
+    }>;
+    getDebtAnalytics(user: any, startDate?: string, endDate?: string): Promise<{
+        debtOverview: any;
+        debtByCustomer: any[];
+        debtByStatus: any[];
+        debtByTimeRange: any[];
+        topDebtCustomers: any[];
+        debtAging: any[];
+        summary: {
+            totalDebt: any;
+            totalDebtCustomers: number;
+            avgDebtPerCustomer: number;
+        };
+    }>;
+    getPaymentHistoryAnalytics(user: any, startDate?: string, endDate?: string): Promise<{
+        paymentOverview: any;
+        paymentByMethod: any[];
+        paymentByTimeRange: any[];
+        paymentByCustomer: any[];
+        recentPayments: (import("mongoose").Document<unknown, {}, import("../models/invoice.model").Invoice, {}, {}> & import("../models/invoice.model").Invoice & Required<{
+            _id: unknown;
+        }> & {
+            __v: number;
+        })[];
+        summary: {
+            totalPaid: any;
+            totalRevenue: any;
+            paymentRate: any;
+            totalCustomers: number;
+        };
+    }>;
+    getOverdueDebtReport(user: any, daysOverdue?: number): Promise<{
+        overdueOverview: any;
+        overdueByCustomer: any[];
+        overdueByTimeRange: any[];
+        criticalOverdue: (import("mongoose").Document<unknown, {}, import("../models/invoice.model").Invoice, {}, {}> & import("../models/invoice.model").Invoice & Required<{
+            _id: unknown;
+        }> & {
+            __v: number;
+        })[];
+        summary: {
+            totalOverdueAmount: any;
+            totalOverdueInvoices: any;
+            totalOverdueCustomers: number;
+            criticalOverdueCount: number;
+        };
+    }>;
+    getDebtReport(user: any, startDate?: string, endDate?: string, format?: 'json' | 'csv'): Promise<{
+        debtOverview: any;
+        debtByCustomer: any[];
+        debtByStatus: any[];
+        debtByTimeRange: any[];
+        topDebtCustomers: any[];
+        debtAging: any[];
+        summary: {
+            totalDebt: any;
+            totalDebtCustomers: number;
+            avgDebtPerCustomer: number;
+        };
+    }>;
+    getPaymentReport(user: any, startDate?: string, endDate?: string, format?: 'json' | 'csv'): Promise<{
+        paymentOverview: any;
+        paymentByMethod: any[];
+        paymentByTimeRange: any[];
+        paymentByCustomer: any[];
+        recentPayments: (import("mongoose").Document<unknown, {}, import("../models/invoice.model").Invoice, {}, {}> & import("../models/invoice.model").Invoice & Required<{
+            _id: unknown;
+        }> & {
+            __v: number;
+        })[];
+        summary: {
+            totalPaid: any;
+            totalRevenue: any;
+            paymentRate: any;
+            totalCustomers: number;
+        };
+    }>;
+    getOverdueReport(user: any, daysOverdue?: number, format?: 'json' | 'csv'): Promise<{
+        overdueOverview: any;
+        overdueByCustomer: any[];
+        overdueByTimeRange: any[];
+        criticalOverdue: (import("mongoose").Document<unknown, {}, import("../models/invoice.model").Invoice, {}, {}> & import("../models/invoice.model").Invoice & Required<{
+            _id: unknown;
+        }> & {
+            __v: number;
+        })[];
+        summary: {
+            totalOverdueAmount: any;
+            totalOverdueInvoices: any;
+            totalOverdueCustomers: number;
+            criticalOverdueCount: number;
+        };
     }>;
 }

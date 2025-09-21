@@ -90,7 +90,7 @@ let AnalyticsService = AnalyticsService_1 = class AnalyticsService {
     async getPaymentAnalytics(userId, startDate, endDate) {
         this.logger.log(`💰 Lấy thống kê thanh toán cho user: ${userId}`);
         const filter = this.buildDateFilter(userId, startDate, endDate);
-        const [paymentStatusStats, debtAnalysis, paymentMethodStats, overdueInvoices] = await Promise.all([
+        const [paymentStatusStats, debtAnalysis, paymentMethodStats, overdueInvoices, totalPaidAmount, debtByCustomer, paymentHistory] = await Promise.all([
             this.invoiceModel.aggregate([
                 { $match: { ...filter, status: { $ne: 'cancelled' } } },
                 {
@@ -111,7 +111,14 @@ let AnalyticsService = AnalyticsService_1 = class AnalyticsService {
                         totalDebt: { $sum: '$remainingAmount' },
                         avgDebtPerInvoice: { $avg: '$remainingAmount' },
                         maxDebt: { $max: '$remainingAmount' },
-                        debtCount: { $sum: 1 }
+                        minDebt: { $min: '$remainingAmount' },
+                        debtCount: { $sum: 1 },
+                        unpaidCount: {
+                            $sum: { $cond: [{ $eq: ['$paymentStatus', 'unpaid'] }, 1, 0] }
+                        },
+                        partialCount: {
+                            $sum: { $cond: [{ $eq: ['$paymentStatus', 'partial'] }, 1, 0] }
+                        }
                     }
                 }
             ]),
@@ -122,6 +129,8 @@ let AnalyticsService = AnalyticsService_1 = class AnalyticsService {
                         _id: '$paymentMethod',
                         count: { $sum: 1 },
                         totalAmount: { $sum: '$totalAmount' },
+                        paidAmount: { $sum: '$paidAmount' },
+                        remainingAmount: { $sum: '$remainingAmount' },
                         avgAmount: { $avg: '$totalAmount' }
                     }
                 }
@@ -138,16 +147,419 @@ let AnalyticsService = AnalyticsService_1 = class AnalyticsService {
                     $group: {
                         _id: null,
                         count: { $sum: 1 },
-                        totalAmount: { $sum: '$remainingAmount' }
+                        totalAmount: { $sum: '$remainingAmount' },
+                        avgAmount: { $avg: '$remainingAmount' }
                     }
                 }
+            ]),
+            this.invoiceModel.aggregate([
+                { $match: { ...filter, status: { $ne: 'cancelled' } } },
+                {
+                    $group: {
+                        _id: null,
+                        totalPaid: { $sum: '$paidAmount' },
+                        totalRevenue: { $sum: '$totalAmount' },
+                        paymentRate: { $avg: { $divide: ['$paidAmount', '$totalAmount'] } }
+                    }
+                }
+            ]),
+            this.invoiceModel.aggregate([
+                { $match: { ...filter, paymentStatus: { $in: ['unpaid', 'partial'] } } },
+                {
+                    $group: {
+                        _id: {
+                            customerId: '$customerId',
+                            customerName: '$customerName',
+                            customerPhone: '$customerPhone'
+                        },
+                        totalDebt: { $sum: '$remainingAmount' },
+                        invoiceCount: { $sum: 1 },
+                        avgDebt: { $avg: '$remainingAmount' },
+                        maxDebt: { $max: '$remainingAmount' },
+                        lastOrderDate: { $max: '$createdAt' }
+                    }
+                },
+                { $sort: { totalDebt: -1 } },
+                { $limit: 20 }
+            ]),
+            this.invoiceModel.aggregate([
+                { $match: { ...filter, status: { $ne: 'cancelled' } } },
+                {
+                    $group: {
+                        _id: {
+                            year: { $year: '$createdAt' },
+                            month: { $month: '$createdAt' }
+                        },
+                        totalRevenue: { $sum: '$totalAmount' },
+                        totalPaid: { $sum: '$paidAmount' },
+                        totalDebt: { $sum: '$remainingAmount' },
+                        invoiceCount: { $sum: 1 }
+                    }
+                },
+                { $sort: { '_id.year': 1, '_id.month': 1 } }
             ])
         ]);
         return {
             paymentStatusStats,
-            debtAnalysis: debtAnalysis[0] || { totalDebt: 0, avgDebtPerInvoice: 0, maxDebt: 0, debtCount: 0 },
+            debtAnalysis: debtAnalysis[0] || {
+                totalDebt: 0,
+                avgDebtPerInvoice: 0,
+                maxDebt: 0,
+                minDebt: 0,
+                debtCount: 0,
+                unpaidCount: 0,
+                partialCount: 0
+            },
             paymentMethodStats,
-            overdueInvoices: overdueInvoices[0] || { count: 0, totalAmount: 0 }
+            overdueInvoices: overdueInvoices[0] || { count: 0, totalAmount: 0, avgAmount: 0 },
+            totalPaidAmount: totalPaidAmount[0] || { totalPaid: 0, totalRevenue: 0, paymentRate: 0 },
+            debtByCustomer,
+            paymentHistory,
+            summary: {
+                totalDebt: debtAnalysis[0]?.totalDebt || 0,
+                totalPaid: totalPaidAmount[0]?.totalPaid || 0,
+                totalRevenue: totalPaidAmount[0]?.totalRevenue || 0,
+                paymentRate: totalPaidAmount[0]?.paymentRate || 0,
+                debtRate: totalPaidAmount[0]?.totalRevenue > 0 ?
+                    (debtAnalysis[0]?.totalDebt || 0) / totalPaidAmount[0].totalRevenue : 0
+            }
+        };
+    }
+    async getDebtAnalytics(userId, startDate, endDate) {
+        this.logger.log(`💳 Lấy thống kê nợ chi tiết cho user: ${userId}`);
+        const filter = this.buildDateFilter(userId, startDate, endDate);
+        const [debtOverview, debtByCustomer, debtByStatus, debtByTimeRange, topDebtCustomers, debtAging] = await Promise.all([
+            this.invoiceModel.aggregate([
+                { $match: { ...filter, paymentStatus: { $in: ['unpaid', 'partial'] } } },
+                {
+                    $group: {
+                        _id: null,
+                        totalDebt: { $sum: '$remainingAmount' },
+                        totalInvoices: { $sum: 1 },
+                        avgDebtPerInvoice: { $avg: '$remainingAmount' },
+                        maxDebt: { $max: '$remainingAmount' },
+                        minDebt: { $min: '$remainingAmount' },
+                        unpaidCount: {
+                            $sum: { $cond: [{ $eq: ['$paymentStatus', 'unpaid'] }, 1, 0] }
+                        },
+                        partialCount: {
+                            $sum: { $cond: [{ $eq: ['$paymentStatus', 'partial'] }, 1, 0] }
+                        }
+                    }
+                }
+            ]),
+            this.invoiceModel.aggregate([
+                { $match: { ...filter, paymentStatus: { $in: ['unpaid', 'partial'] } } },
+                {
+                    $group: {
+                        _id: {
+                            customerId: '$customerId',
+                            customerName: '$customerName',
+                            customerPhone: '$customerPhone',
+                            customerAddress: '$customerAddress'
+                        },
+                        totalDebt: { $sum: '$remainingAmount' },
+                        invoiceCount: { $sum: 1 },
+                        avgDebt: { $avg: '$remainingAmount' },
+                        maxDebt: { $max: '$remainingAmount' },
+                        lastOrderDate: { $max: '$createdAt' },
+                        firstDebtDate: { $min: '$createdAt' },
+                        unpaidInvoices: {
+                            $sum: { $cond: [{ $eq: ['$paymentStatus', 'unpaid'] }, 1, 0] }
+                        },
+                        partialInvoices: {
+                            $sum: { $cond: [{ $eq: ['$paymentStatus', 'partial'] }, 1, 0] }
+                        }
+                    }
+                },
+                { $sort: { totalDebt: -1 } }
+            ]),
+            this.invoiceModel.aggregate([
+                { $match: { ...filter, paymentStatus: { $in: ['unpaid', 'partial'] } } },
+                {
+                    $group: {
+                        _id: '$paymentStatus',
+                        totalDebt: { $sum: '$remainingAmount' },
+                        invoiceCount: { $sum: 1 },
+                        avgDebt: { $avg: '$remainingAmount' }
+                    }
+                }
+            ]),
+            this.invoiceModel.aggregate([
+                { $match: { ...filter, paymentStatus: { $in: ['unpaid', 'partial'] } } },
+                {
+                    $group: {
+                        _id: {
+                            year: { $year: '$createdAt' },
+                            month: { $month: '$createdAt' }
+                        },
+                        totalDebt: { $sum: '$remainingAmount' },
+                        invoiceCount: { $sum: 1 },
+                        avgDebt: { $avg: '$remainingAmount' }
+                    }
+                },
+                { $sort: { '_id.year': 1, '_id.month': 1 } }
+            ]),
+            this.invoiceModel.aggregate([
+                { $match: { ...filter, paymentStatus: { $in: ['unpaid', 'partial'] } } },
+                {
+                    $group: {
+                        _id: {
+                            customerId: '$customerId',
+                            customerName: '$customerName',
+                            customerPhone: '$customerPhone'
+                        },
+                        totalDebt: { $sum: '$remainingAmount' },
+                        invoiceCount: { $sum: 1 },
+                        lastOrderDate: { $max: '$createdAt' }
+                    }
+                },
+                { $sort: { totalDebt: -1 } },
+                { $limit: 10 }
+            ]),
+            this.getDebtAging(userId, startDate, endDate)
+        ]);
+        return {
+            debtOverview: debtOverview[0] || {
+                totalDebt: 0,
+                totalInvoices: 0,
+                avgDebtPerInvoice: 0,
+                maxDebt: 0,
+                minDebt: 0,
+                unpaidCount: 0,
+                partialCount: 0
+            },
+            debtByCustomer,
+            debtByStatus,
+            debtByTimeRange,
+            topDebtCustomers,
+            debtAging,
+            summary: {
+                totalDebt: debtOverview[0]?.totalDebt || 0,
+                totalDebtCustomers: debtByCustomer.length,
+                avgDebtPerCustomer: debtByCustomer.length > 0 ?
+                    debtByCustomer.reduce((sum, c) => sum + c.totalDebt, 0) / debtByCustomer.length : 0
+            }
+        };
+    }
+    async getPaymentHistoryAnalytics(userId, startDate, endDate) {
+        this.logger.log(`💸 Lấy thống kê lịch sử thanh toán cho user: ${userId}`);
+        const filter = this.buildDateFilter(userId, startDate, endDate);
+        const [paymentOverview, paymentByMethod, paymentByTimeRange, paymentByCustomer, recentPayments] = await Promise.all([
+            this.invoiceModel.aggregate([
+                { $match: { ...filter, status: { $ne: 'cancelled' } } },
+                {
+                    $group: {
+                        _id: null,
+                        totalRevenue: { $sum: '$totalAmount' },
+                        totalPaid: { $sum: '$paidAmount' },
+                        totalRemaining: { $sum: '$remainingAmount' },
+                        totalInvoices: { $sum: 1 },
+                        paidInvoices: {
+                            $sum: { $cond: [{ $eq: ['$paymentStatus', 'paid'] }, 1, 0] }
+                        },
+                        partialInvoices: {
+                            $sum: { $cond: [{ $eq: ['$paymentStatus', 'partial'] }, 1, 0] }
+                        },
+                        unpaidInvoices: {
+                            $sum: { $cond: [{ $eq: ['$paymentStatus', 'unpaid'] }, 1, 0] }
+                        },
+                        avgPaymentRate: { $avg: { $divide: ['$paidAmount', '$totalAmount'] } }
+                    }
+                }
+            ]),
+            this.invoiceModel.aggregate([
+                { $match: { ...filter, status: { $ne: 'cancelled' } } },
+                {
+                    $group: {
+                        _id: '$paymentMethod',
+                        totalRevenue: { $sum: '$totalAmount' },
+                        totalPaid: { $sum: '$paidAmount' },
+                        totalRemaining: { $sum: '$remainingAmount' },
+                        invoiceCount: { $sum: 1 },
+                        avgPaymentRate: { $avg: { $divide: ['$paidAmount', '$totalAmount'] } }
+                    }
+                },
+                { $sort: { totalPaid: -1 } }
+            ]),
+            this.invoiceModel.aggregate([
+                { $match: { ...filter, status: { $ne: 'cancelled' } } },
+                {
+                    $group: {
+                        _id: {
+                            year: { $year: '$createdAt' },
+                            month: { $month: '$createdAt' }
+                        },
+                        totalRevenue: { $sum: '$totalAmount' },
+                        totalPaid: { $sum: '$paidAmount' },
+                        totalRemaining: { $sum: '$remainingAmount' },
+                        invoiceCount: { $sum: 1 },
+                        paymentRate: { $avg: { $divide: ['$paidAmount', '$totalAmount'] } }
+                    }
+                },
+                { $sort: { '_id.year': 1, '_id.month': 1 } }
+            ]),
+            this.invoiceModel.aggregate([
+                { $match: { ...filter, status: { $ne: 'cancelled' } } },
+                {
+                    $group: {
+                        _id: {
+                            customerId: '$customerId',
+                            customerName: '$customerName',
+                            customerPhone: '$customerPhone'
+                        },
+                        totalRevenue: { $sum: '$totalAmount' },
+                        totalPaid: { $sum: '$paidAmount' },
+                        totalRemaining: { $sum: '$remainingAmount' },
+                        invoiceCount: { $sum: 1 },
+                        avgPaymentRate: { $avg: { $divide: ['$paidAmount', '$totalAmount'] } },
+                        lastPaymentDate: { $max: '$createdAt' }
+                    }
+                },
+                { $sort: { totalPaid: -1 } },
+                { $limit: 20 }
+            ]),
+            this.invoiceModel.find({
+                ...filter,
+                status: { $ne: 'cancelled' },
+                paidAmount: { $gt: 0 }
+            })
+                .sort({ createdAt: -1 })
+                .limit(10)
+                .select('invoiceNumber customerName totalAmount paidAmount remainingAmount paymentStatus createdAt')
+        ]);
+        return {
+            paymentOverview: paymentOverview[0] || {
+                totalRevenue: 0,
+                totalPaid: 0,
+                totalRemaining: 0,
+                totalInvoices: 0,
+                paidInvoices: 0,
+                partialInvoices: 0,
+                unpaidInvoices: 0,
+                avgPaymentRate: 0
+            },
+            paymentByMethod,
+            paymentByTimeRange,
+            paymentByCustomer,
+            recentPayments,
+            summary: {
+                totalPaid: paymentOverview[0]?.totalPaid || 0,
+                totalRevenue: paymentOverview[0]?.totalRevenue || 0,
+                paymentRate: paymentOverview[0]?.avgPaymentRate || 0,
+                totalCustomers: paymentByCustomer.length
+            }
+        };
+    }
+    async getOverdueDebtReport(userId, daysOverdue = 30) {
+        this.logger.log(`⚠️ Lấy báo cáo nợ quá hạn cho user: ${userId}`);
+        const cutoffDate = new Date(Date.now() - daysOverdue * 24 * 60 * 60 * 1000);
+        const [overdueOverview, overdueByCustomer, overdueByTimeRange, criticalOverdue] = await Promise.all([
+            this.invoiceModel.aggregate([
+                {
+                    $match: {
+                        createdBy: new mongoose_2.Types.ObjectId(userId),
+                        isDeleted: false,
+                        paymentStatus: { $in: ['unpaid', 'partial'] },
+                        createdAt: { $lt: cutoffDate }
+                    }
+                },
+                {
+                    $group: {
+                        _id: null,
+                        totalOverdueAmount: { $sum: '$remainingAmount' },
+                        totalOverdueInvoices: { $sum: 1 },
+                        avgOverdueAmount: { $avg: '$remainingAmount' },
+                        maxOverdueAmount: { $max: '$remainingAmount' },
+                        minOverdueAmount: { $min: '$remainingAmount' }
+                    }
+                }
+            ]),
+            this.invoiceModel.aggregate([
+                {
+                    $match: {
+                        createdBy: new mongoose_2.Types.ObjectId(userId),
+                        isDeleted: false,
+                        paymentStatus: { $in: ['unpaid', 'partial'] },
+                        createdAt: { $lt: cutoffDate }
+                    }
+                },
+                {
+                    $group: {
+                        _id: {
+                            customerId: '$customerId',
+                            customerName: '$customerName',
+                            customerPhone: '$customerPhone',
+                            customerAddress: '$customerAddress'
+                        },
+                        totalOverdueAmount: { $sum: '$remainingAmount' },
+                        overdueInvoices: { $sum: 1 },
+                        avgOverdueAmount: { $avg: '$remainingAmount' },
+                        oldestOverdueDate: { $min: '$createdAt' },
+                        newestOverdueDate: { $max: '$createdAt' }
+                    }
+                },
+                { $sort: { totalOverdueAmount: -1 } }
+            ]),
+            this.invoiceModel.aggregate([
+                {
+                    $match: {
+                        createdBy: new mongoose_2.Types.ObjectId(userId),
+                        isDeleted: false,
+                        paymentStatus: { $in: ['unpaid', 'partial'] },
+                        createdAt: { $lt: cutoffDate }
+                    }
+                },
+                {
+                    $addFields: {
+                        daysOverdue: {
+                            $divide: [
+                                { $subtract: [new Date(), '$createdAt'] },
+                                1000 * 60 * 60 * 24
+                            ]
+                        }
+                    }
+                },
+                {
+                    $bucket: {
+                        groupBy: '$daysOverdue',
+                        boundaries: [30, 60, 90, 180, 365, Infinity],
+                        default: 'Over 1 year',
+                        output: {
+                            count: { $sum: 1 },
+                            totalAmount: { $sum: '$remainingAmount' },
+                            avgAmount: { $avg: '$remainingAmount' }
+                        }
+                    }
+                }
+            ]),
+            this.invoiceModel.find({
+                createdBy: new mongoose_2.Types.ObjectId(userId),
+                isDeleted: false,
+                paymentStatus: { $in: ['unpaid', 'partial'] },
+                createdAt: { $lt: new Date(Date.now() - 90 * 24 * 60 * 60 * 1000) }
+            })
+                .sort({ createdAt: 1 })
+                .limit(20)
+                .select('invoiceNumber customerName totalAmount remainingAmount paymentStatus createdAt')
+        ]);
+        return {
+            overdueOverview: overdueOverview[0] || {
+                totalOverdueAmount: 0,
+                totalOverdueInvoices: 0,
+                avgOverdueAmount: 0,
+                maxOverdueAmount: 0,
+                minOverdueAmount: 0
+            },
+            overdueByCustomer,
+            overdueByTimeRange,
+            criticalOverdue,
+            summary: {
+                totalOverdueAmount: overdueOverview[0]?.totalOverdueAmount || 0,
+                totalOverdueInvoices: overdueOverview[0]?.totalOverdueInvoices || 0,
+                totalOverdueCustomers: overdueByCustomer.length,
+                criticalOverdueCount: criticalOverdue.length
+            }
         };
     }
     async getInventoryAnalytics(userId) {
@@ -374,9 +786,9 @@ let AnalyticsService = AnalyticsService_1 = class AnalyticsService {
     async getStockInAnalytics(userId, startDate, endDate) {
         this.logger.log(`📥 Lấy thống kê nhập hàng cho user: ${userId}`);
         const filter = this.buildDateFilter(userId, startDate, endDate, 'stockIn');
-        const [stockInOverview, supplierAnalysis, paymentStatusAnalysis, processingTimeAnalysis] = await Promise.all([
+        const [stockInOverview, supplierAnalysis, paymentStatusAnalysis, processingTimeAnalysis, paymentSummary] = await Promise.all([
             this.stockInModel.aggregate([
-                { $match: { ...filter, isDeleted: false } },
+                { $match: { ...filter, isDeleted: false, status: { $ne: 'rejected' } } },
                 {
                     $group: {
                         _id: null,
@@ -389,7 +801,7 @@ let AnalyticsService = AnalyticsService_1 = class AnalyticsService {
                 }
             ]),
             this.stockInModel.aggregate([
-                { $match: { ...filter, isDeleted: false, supplier: { $exists: true, $ne: null } } },
+                { $match: { ...filter, isDeleted: false, status: { $ne: 'rejected' }, supplier: { $exists: true, $ne: null } } },
                 {
                     $group: {
                         _id: '$supplier',
@@ -402,7 +814,7 @@ let AnalyticsService = AnalyticsService_1 = class AnalyticsService {
                 { $sort: { totalAmount: -1 } }
             ]),
             this.stockInModel.aggregate([
-                { $match: { ...filter, isDeleted: false } },
+                { $match: { ...filter, isDeleted: false, status: { $ne: 'rejected' } } },
                 {
                     $group: {
                         _id: '$paymentStatus',
@@ -413,13 +825,15 @@ let AnalyticsService = AnalyticsService_1 = class AnalyticsService {
                     }
                 }
             ]),
-            this.getProcessingTimeAnalysis(userId, startDate, endDate)
+            this.getProcessingTimeAnalysis(userId, startDate, endDate),
+            this.getStockInPaymentSummaryData(userId, startDate, endDate)
         ]);
         return {
             stockInOverview: stockInOverview[0] || { totalStockIns: 0, totalAmount: 0, paidAmount: 0, remainingAmount: 0, avgAmount: 0 },
             supplierAnalysis,
             paymentStatusAnalysis,
-            processingTimeAnalysis
+            processingTimeAnalysis,
+            paymentSummary
         };
     }
     async getTimeBasedAnalytics(userId, startDate, endDate) {
@@ -634,6 +1048,10 @@ let AnalyticsService = AnalyticsService_1 = class AnalyticsService {
             }
         };
     }
+    async getStockInPaymentSummary(userId, startDate, endDate) {
+        this.logger.log(`💰 Lấy thống kê thanh toán nhập hàng cho user: ${userId}`);
+        return this.getStockInPaymentSummaryData(userId, startDate, endDate);
+    }
     buildDateFilter(userId, startDate, endDate, type = 'invoice') {
         const filter = {
             [type === 'invoice' ? 'createdBy' : 'userId']: new mongoose_2.Types.ObjectId(userId),
@@ -795,6 +1213,132 @@ let AnalyticsService = AnalyticsService_1 = class AnalyticsService {
                 }
             }
         ]);
+    }
+    async getStockInPaymentSummaryData(userId, startDate, endDate) {
+        const filter = this.buildDateFilter(userId, startDate, endDate, 'stockIn');
+        const [totalSummary, paidSummary, unpaidSummary, partialSummary, paymentTrends] = await Promise.all([
+            this.stockInModel.aggregate([
+                { $match: { ...filter, isDeleted: false, status: { $ne: 'rejected' } } },
+                {
+                    $group: {
+                        _id: null,
+                        totalAmount: { $sum: '$totalAmount' },
+                        totalPaid: { $sum: '$paidAmount' },
+                        totalRemaining: { $sum: '$remainingAmount' },
+                        totalCount: { $sum: 1 },
+                        avgAmount: { $avg: '$totalAmount' },
+                        avgPaid: { $avg: '$paidAmount' },
+                        avgRemaining: { $avg: '$remainingAmount' }
+                    }
+                }
+            ]),
+            this.stockInModel.aggregate([
+                { $match: { ...filter, isDeleted: false, status: { $ne: 'rejected' }, paymentStatus: 'paid' } },
+                {
+                    $group: {
+                        _id: null,
+                        totalAmount: { $sum: '$totalAmount' },
+                        totalPaid: { $sum: '$paidAmount' },
+                        count: { $sum: 1 },
+                        avgAmount: { $avg: '$totalAmount' }
+                    }
+                }
+            ]),
+            this.stockInModel.aggregate([
+                { $match: { ...filter, isDeleted: false, status: { $ne: 'rejected' }, paymentStatus: 'unpaid' } },
+                {
+                    $group: {
+                        _id: null,
+                        totalAmount: { $sum: '$totalAmount' },
+                        totalRemaining: { $sum: '$remainingAmount' },
+                        count: { $sum: 1 },
+                        avgAmount: { $avg: '$totalAmount' }
+                    }
+                }
+            ]),
+            this.stockInModel.aggregate([
+                { $match: { ...filter, isDeleted: false, status: { $ne: 'rejected' }, paymentStatus: 'partial' } },
+                {
+                    $group: {
+                        _id: null,
+                        totalAmount: { $sum: '$totalAmount' },
+                        totalPaid: { $sum: '$paidAmount' },
+                        totalRemaining: { $sum: '$remainingAmount' },
+                        count: { $sum: 1 },
+                        avgAmount: { $avg: '$totalAmount' },
+                        avgPaid: { $avg: '$paidAmount' },
+                        avgRemaining: { $avg: '$remainingAmount' }
+                    }
+                }
+            ]),
+            this.stockInModel.aggregate([
+                { $match: { ...filter, isDeleted: false, status: { $ne: 'rejected' } } },
+                {
+                    $group: {
+                        _id: {
+                            year: { $year: '$createdAt' },
+                            month: { $month: '$createdAt' }
+                        },
+                        totalAmount: { $sum: '$totalAmount' },
+                        totalPaid: { $sum: '$paidAmount' },
+                        totalRemaining: { $sum: '$remainingAmount' },
+                        count: { $sum: 1 },
+                        paidCount: {
+                            $sum: { $cond: [{ $eq: ['$paymentStatus', 'paid'] }, 1, 0] }
+                        },
+                        unpaidCount: {
+                            $sum: { $cond: [{ $eq: ['$paymentStatus', 'unpaid'] }, 1, 0] }
+                        },
+                        partialCount: {
+                            $sum: { $cond: [{ $eq: ['$paymentStatus', 'partial'] }, 1, 0] }
+                        }
+                    }
+                },
+                { $sort: { '_id.year': 1, '_id.month': 1 } }
+            ])
+        ]);
+        const total = totalSummary[0] || { totalAmount: 0, totalPaid: 0, totalRemaining: 0, totalCount: 0, avgAmount: 0, avgPaid: 0, avgRemaining: 0 };
+        const paid = paidSummary[0] || { totalAmount: 0, totalPaid: 0, count: 0, avgAmount: 0 };
+        const unpaid = unpaidSummary[0] || { totalAmount: 0, totalRemaining: 0, count: 0, avgAmount: 0 };
+        const partial = partialSummary[0] || { totalAmount: 0, totalPaid: 0, totalRemaining: 0, count: 0, avgAmount: 0, avgPaid: 0, avgRemaining: 0 };
+        const paymentRate = total.totalAmount > 0 ? (total.totalPaid / total.totalAmount) * 100 : 0;
+        const debtRate = total.totalAmount > 0 ? (total.totalRemaining / total.totalAmount) * 100 : 0;
+        return {
+            summary: {
+                totalAmount: total.totalAmount,
+                totalPaid: total.totalPaid,
+                totalRemaining: total.totalRemaining,
+                totalCount: total.totalCount,
+                paymentRate: Math.round(paymentRate * 100) / 100,
+                debtRate: Math.round(debtRate * 100) / 100,
+                avgAmount: total.avgAmount,
+                avgPaid: total.avgPaid,
+                avgRemaining: total.avgRemaining
+            },
+            paid: {
+                amount: paid.totalAmount,
+                count: paid.count,
+                avgAmount: paid.avgAmount,
+                percentage: total.totalAmount > 0 ? Math.round((paid.totalAmount / total.totalAmount) * 100 * 100) / 100 : 0
+            },
+            unpaid: {
+                amount: unpaid.totalAmount,
+                count: unpaid.count,
+                avgAmount: unpaid.avgAmount,
+                percentage: total.totalAmount > 0 ? Math.round((unpaid.totalAmount / total.totalAmount) * 100 * 100) / 100 : 0
+            },
+            partial: {
+                amount: partial.totalAmount,
+                paidAmount: partial.totalPaid,
+                remainingAmount: partial.totalRemaining,
+                count: partial.count,
+                avgAmount: partial.avgAmount,
+                avgPaid: partial.avgPaid,
+                avgRemaining: partial.avgRemaining,
+                percentage: total.totalAmount > 0 ? Math.round((partial.totalAmount / total.totalAmount) * 100 * 100) / 100 : 0
+            },
+            trends: paymentTrends
+        };
     }
     async getDailyTrends(userId, startDate, endDate) {
         return this.invoiceModel.aggregate([
@@ -965,10 +1509,10 @@ let AnalyticsService = AnalyticsService_1 = class AnalyticsService {
     async getStockInSummary(userId, startDate, endDate) {
         const filter = this.buildDateFilter(userId, startDate, endDate, 'stockIn');
         const [totalStockIns, pendingCount, totalAmount] = await Promise.all([
-            this.stockInModel.countDocuments({ ...filter, isDeleted: false }),
+            this.stockInModel.countDocuments({ ...filter, isDeleted: false, status: { $ne: 'rejected' } }),
             this.stockInModel.countDocuments({ ...filter, isDeleted: false, status: 'pending' }),
             this.stockInModel.aggregate([
-                { $match: { ...filter, isDeleted: false } },
+                { $match: { ...filter, isDeleted: false, status: { $ne: 'rejected' } } },
                 { $group: { _id: null, total: { $sum: '$totalAmount' } } }
             ])
         ]);
@@ -1069,6 +1613,42 @@ let AnalyticsService = AnalyticsService_1 = class AnalyticsService {
             };
         });
         return growthData.sort((a, b) => b.customerGrowth - a.customerGrowth);
+    }
+    async getDebtAging(userId, startDate, endDate) {
+        const filter = this.buildDateFilter(userId, startDate, endDate);
+        return this.invoiceModel.aggregate([
+            { $match: { ...filter, paymentStatus: { $in: ['unpaid', 'partial'] } } },
+            {
+                $addFields: {
+                    daysSinceCreated: {
+                        $divide: [
+                            { $subtract: [new Date(), '$createdAt'] },
+                            1000 * 60 * 60 * 24
+                        ]
+                    }
+                }
+            },
+            {
+                $bucket: {
+                    groupBy: '$daysSinceCreated',
+                    boundaries: [0, 30, 60, 90, 180, 365, Infinity],
+                    default: 'Over 1 year',
+                    output: {
+                        count: { $sum: 1 },
+                        totalAmount: { $sum: '$remainingAmount' },
+                        avgAmount: { $avg: '$remainingAmount' },
+                        invoices: {
+                            $push: {
+                                invoiceNumber: '$invoiceNumber',
+                                customerName: '$customerName',
+                                remainingAmount: '$remainingAmount',
+                                daysSinceCreated: { $round: '$daysSinceCreated' }
+                            }
+                        }
+                    }
+                }
+            }
+        ]);
     }
     processRegionData(regions) {
         return regions.map(region => {

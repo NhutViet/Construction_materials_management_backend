@@ -19,6 +19,7 @@ const auth_module_1 = require("./modules/auth.module");
 const invoice_module_1 = require("./modules/invoice.module");
 const stock_in_module_1 = require("./modules/stock-in.module");
 const analytics_module_1 = require("./modules/analytics.module");
+const notification_module_1 = require("./modules/notification.module");
 let AppModule = class AppModule {
     onModuleInit() {
         console.log('🚀 Construction Materials Management Backend đã khởi động!');
@@ -70,6 +71,23 @@ let AppModule = class AppModule {
         console.log('   • GET    /analytics/quick-stats - Thống kê nhanh');
         console.log('   • GET    /analytics/alerts - Cảnh báo hệ thống');
         console.log('   • GET    /analytics/reports/* - Báo cáo chi tiết');
+        console.log('🔔 Notifications (Thông báo):');
+        console.log('   • POST   /notifications - Tạo thông báo mới');
+        console.log('   • GET    /notifications - Lấy danh sách thông báo');
+        console.log('   • GET    /notifications/:id - Lấy thông báo theo ID');
+        console.log('   • PATCH  /notifications/:id - Cập nhật thông báo');
+        console.log('   • DELETE /notifications/:id - Xóa thông báo');
+        console.log('   • PATCH  /notifications/:id/read - Đánh dấu đã đọc');
+        console.log('   • PATCH  /notifications/:id/unread - Đánh dấu chưa đọc');
+        console.log('   • PATCH  /notifications/mark-all-read - Đánh dấu tất cả đã đọc');
+        console.log('   • GET    /notifications/unread-count - Đếm số thông báo chưa đọc');
+        console.log('   • GET    /notifications/type/:type - Lấy thông báo theo loại');
+        console.log('   • GET    /notifications/priority/:priority - Lấy thông báo theo mức độ');
+        console.log('   • GET    /notifications/user/:userId - Lấy thông báo của user');
+        console.log('   • GET    /notifications/system - Lấy thông báo hệ thống');
+        console.log('   • GET    /notifications/auto-generated - Lấy thông báo tự động');
+        console.log('   • POST   /notifications/system/broadcast - Gửi thông báo broadcast');
+        console.log('   • DELETE /notifications/cleanup/expired - Dọn dẹp thông báo hết hạn');
         console.log('🌐 Server đang chạy tại: http://localhost:3000');
         console.log('⏰ Khởi động lúc:', new Date().toLocaleString('vi-VN'));
         console.log('='.repeat(60));
@@ -85,6 +103,7 @@ exports.AppModule = AppModule = __decorate([
             invoice_module_1.InvoiceModule,
             stock_in_module_1.StockInModule,
             analytics_module_1.AnalyticsModule,
+            notification_module_1.NotificationModule,
         ],
         controllers: [app_controller_1.AppController, material_controller_1.MaterialController],
         providers: [app_service_1.AppService, material_service_1.MaterialService],

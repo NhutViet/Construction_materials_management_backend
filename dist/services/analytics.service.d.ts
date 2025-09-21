@@ -27,6 +27,62 @@ export declare class AnalyticsService {
         debtAnalysis: any;
         paymentMethodStats: any[];
         overdueInvoices: any;
+        totalPaidAmount: any;
+        debtByCustomer: any[];
+        paymentHistory: any[];
+        summary: {
+            totalDebt: any;
+            totalPaid: any;
+            totalRevenue: any;
+            paymentRate: any;
+            debtRate: number;
+        };
+    }>;
+    getDebtAnalytics(userId: string, startDate?: string, endDate?: string): Promise<{
+        debtOverview: any;
+        debtByCustomer: any[];
+        debtByStatus: any[];
+        debtByTimeRange: any[];
+        topDebtCustomers: any[];
+        debtAging: any[];
+        summary: {
+            totalDebt: any;
+            totalDebtCustomers: number;
+            avgDebtPerCustomer: number;
+        };
+    }>;
+    getPaymentHistoryAnalytics(userId: string, startDate?: string, endDate?: string): Promise<{
+        paymentOverview: any;
+        paymentByMethod: any[];
+        paymentByTimeRange: any[];
+        paymentByCustomer: any[];
+        recentPayments: (import("mongoose").Document<unknown, {}, Invoice, {}, {}> & Invoice & Required<{
+            _id: unknown;
+        }> & {
+            __v: number;
+        })[];
+        summary: {
+            totalPaid: any;
+            totalRevenue: any;
+            paymentRate: any;
+            totalCustomers: number;
+        };
+    }>;
+    getOverdueDebtReport(userId: string, daysOverdue?: number): Promise<{
+        overdueOverview: any;
+        overdueByCustomer: any[];
+        overdueByTimeRange: any[];
+        criticalOverdue: (import("mongoose").Document<unknown, {}, Invoice, {}, {}> & Invoice & Required<{
+            _id: unknown;
+        }> & {
+            __v: number;
+        })[];
+        summary: {
+            totalOverdueAmount: any;
+            totalOverdueInvoices: any;
+            totalOverdueCustomers: number;
+            criticalOverdueCount: number;
+        };
     }>;
     getInventoryAnalytics(userId: string): Promise<{
         inventoryOverview: any;
@@ -82,6 +138,42 @@ export declare class AnalyticsService {
         supplierAnalysis: any[];
         paymentStatusAnalysis: any[];
         processingTimeAnalysis: any[];
+        paymentSummary: {
+            summary: {
+                totalAmount: any;
+                totalPaid: any;
+                totalRemaining: any;
+                totalCount: any;
+                paymentRate: number;
+                debtRate: number;
+                avgAmount: any;
+                avgPaid: any;
+                avgRemaining: any;
+            };
+            paid: {
+                amount: any;
+                count: any;
+                avgAmount: any;
+                percentage: number;
+            };
+            unpaid: {
+                amount: any;
+                count: any;
+                avgAmount: any;
+                percentage: number;
+            };
+            partial: {
+                amount: any;
+                paidAmount: any;
+                remainingAmount: any;
+                count: any;
+                avgAmount: any;
+                avgPaid: any;
+                avgRemaining: any;
+                percentage: number;
+            };
+            trends: any[];
+        };
     }>;
     getTimeBasedAnalytics(userId: string, startDate?: string, endDate?: string): Promise<{
         dailyTrends: any[];
@@ -170,6 +262,42 @@ export declare class AnalyticsService {
             avgCustomersPerRegion: number;
         };
     }>;
+    getStockInPaymentSummary(userId: string, startDate?: string, endDate?: string): Promise<{
+        summary: {
+            totalAmount: any;
+            totalPaid: any;
+            totalRemaining: any;
+            totalCount: any;
+            paymentRate: number;
+            debtRate: number;
+            avgAmount: any;
+            avgPaid: any;
+            avgRemaining: any;
+        };
+        paid: {
+            amount: any;
+            count: any;
+            avgAmount: any;
+            percentage: number;
+        };
+        unpaid: {
+            amount: any;
+            count: any;
+            avgAmount: any;
+            percentage: number;
+        };
+        partial: {
+            amount: any;
+            paidAmount: any;
+            remainingAmount: any;
+            count: any;
+            avgAmount: any;
+            avgPaid: any;
+            avgRemaining: any;
+            percentage: number;
+        };
+        trends: any[];
+    }>;
     private buildDateFilter;
     private getRevenueGrowth;
     private getTopSellingMaterials;
@@ -178,6 +306,7 @@ export declare class AnalyticsService {
     private getCustomerRetention;
     private getNewVsReturningCustomers;
     private getProcessingTimeAnalysis;
+    private getStockInPaymentSummaryData;
     private getDailyTrends;
     private getWeeklyTrends;
     private getMonthlyTrends;
@@ -189,5 +318,6 @@ export declare class AnalyticsService {
     private getStockInSummary;
     private getAlerts;
     private getRegionGrowth;
+    private getDebtAging;
     private processRegionData;
 }

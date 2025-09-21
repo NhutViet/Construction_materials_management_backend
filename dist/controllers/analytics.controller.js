@@ -56,6 +56,10 @@ let AnalyticsController = AnalyticsController_1 = class AnalyticsController {
         this.logger.log(`📥 GET /analytics/stock-in - Lấy thống kê nhập hàng cho user: ${user.id}`);
         return this.analyticsService.getStockInAnalytics(user.id, startDate, endDate);
     }
+    getStockInPaymentAnalytics(user, startDate, endDate) {
+        this.logger.log(`💰 GET /analytics/stock-in/payments - Lấy thống kê thanh toán nhập hàng cho user: ${user.id}`);
+        return this.analyticsService.getStockInPaymentSummary(user.id, startDate, endDate);
+    }
     getTimeBasedAnalytics(user, startDate, endDate) {
         this.logger.log(`📈 GET /analytics/trends - Lấy thống kê xu hướng cho user: ${user.id}`);
         return this.analyticsService.getTimeBasedAnalytics(user.id, startDate, endDate);
@@ -87,6 +91,30 @@ let AnalyticsController = AnalyticsController_1 = class AnalyticsController {
     getAlerts(user) {
         this.logger.log(`🚨 GET /analytics/alerts - Cảnh báo cho user: ${user.id}`);
         return this.analyticsService.getDashboardData(user.id).then(data => data.alerts);
+    }
+    getDebtAnalytics(user, startDate, endDate) {
+        this.logger.log(`💳 GET /analytics/debt - Thống kê nợ chi tiết cho user: ${user.id}`);
+        return this.analyticsService.getDebtAnalytics(user.id, startDate, endDate);
+    }
+    getPaymentHistoryAnalytics(user, startDate, endDate) {
+        this.logger.log(`💸 GET /analytics/payments/history - Lịch sử thanh toán cho user: ${user.id}`);
+        return this.analyticsService.getPaymentHistoryAnalytics(user.id, startDate, endDate);
+    }
+    getOverdueDebtReport(user, daysOverdue) {
+        this.logger.log(`⚠️ GET /analytics/debt/overdue - Báo cáo nợ quá hạn cho user: ${user.id}`);
+        return this.analyticsService.getOverdueDebtReport(user.id, daysOverdue);
+    }
+    getDebtReport(user, startDate, endDate, format) {
+        this.logger.log(`📋 GET /analytics/reports/debt - Báo cáo nợ cho user: ${user.id}`);
+        return this.analyticsService.getDebtAnalytics(user.id, startDate, endDate);
+    }
+    getPaymentReport(user, startDate, endDate, format) {
+        this.logger.log(`📋 GET /analytics/reports/payments - Báo cáo thanh toán cho user: ${user.id}`);
+        return this.analyticsService.getPaymentHistoryAnalytics(user.id, startDate, endDate);
+    }
+    getOverdueReport(user, daysOverdue, format) {
+        this.logger.log(`📋 GET /analytics/reports/overdue - Báo cáo nợ quá hạn cho user: ${user.id}`);
+        return this.analyticsService.getOverdueDebtReport(user.id, daysOverdue);
     }
 };
 exports.AnalyticsController = AnalyticsController;
@@ -168,6 +196,15 @@ __decorate([
     __metadata("design:returntype", void 0)
 ], AnalyticsController.prototype, "getStockInAnalytics", null);
 __decorate([
+    (0, common_1.Get)('stock-in/payments'),
+    __param(0, (0, current_user_decorator_1.CurrentUser)()),
+    __param(1, (0, common_1.Query)('startDate')),
+    __param(2, (0, common_1.Query)('endDate')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, String, String]),
+    __metadata("design:returntype", void 0)
+], AnalyticsController.prototype, "getStockInPaymentAnalytics", null);
+__decorate([
     (0, common_1.Get)('trends'),
     __param(0, (0, current_user_decorator_1.CurrentUser)()),
     __param(1, (0, common_1.Query)('startDate')),
@@ -237,6 +274,61 @@ __decorate([
     __metadata("design:paramtypes", [Object]),
     __metadata("design:returntype", void 0)
 ], AnalyticsController.prototype, "getAlerts", null);
+__decorate([
+    (0, common_1.Get)('debt'),
+    __param(0, (0, current_user_decorator_1.CurrentUser)()),
+    __param(1, (0, common_1.Query)('startDate')),
+    __param(2, (0, common_1.Query)('endDate')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, String, String]),
+    __metadata("design:returntype", void 0)
+], AnalyticsController.prototype, "getDebtAnalytics", null);
+__decorate([
+    (0, common_1.Get)('payments/history'),
+    __param(0, (0, current_user_decorator_1.CurrentUser)()),
+    __param(1, (0, common_1.Query)('startDate')),
+    __param(2, (0, common_1.Query)('endDate')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, String, String]),
+    __metadata("design:returntype", void 0)
+], AnalyticsController.prototype, "getPaymentHistoryAnalytics", null);
+__decorate([
+    (0, common_1.Get)('debt/overdue'),
+    __param(0, (0, current_user_decorator_1.CurrentUser)()),
+    __param(1, (0, common_1.Query)('daysOverdue')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, Number]),
+    __metadata("design:returntype", void 0)
+], AnalyticsController.prototype, "getOverdueDebtReport", null);
+__decorate([
+    (0, common_1.Get)('reports/debt'),
+    __param(0, (0, current_user_decorator_1.CurrentUser)()),
+    __param(1, (0, common_1.Query)('startDate')),
+    __param(2, (0, common_1.Query)('endDate')),
+    __param(3, (0, common_1.Query)('format')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, String, String, String]),
+    __metadata("design:returntype", void 0)
+], AnalyticsController.prototype, "getDebtReport", null);
+__decorate([
+    (0, common_1.Get)('reports/payments'),
+    __param(0, (0, current_user_decorator_1.CurrentUser)()),
+    __param(1, (0, common_1.Query)('startDate')),
+    __param(2, (0, common_1.Query)('endDate')),
+    __param(3, (0, common_1.Query)('format')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, String, String, String]),
+    __metadata("design:returntype", void 0)
+], AnalyticsController.prototype, "getPaymentReport", null);
+__decorate([
+    (0, common_1.Get)('reports/overdue'),
+    __param(0, (0, current_user_decorator_1.CurrentUser)()),
+    __param(1, (0, common_1.Query)('daysOverdue')),
+    __param(2, (0, common_1.Query)('format')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, Number, String]),
+    __metadata("design:returntype", void 0)
+], AnalyticsController.prototype, "getOverdueReport", null);
 exports.AnalyticsController = AnalyticsController = AnalyticsController_1 = __decorate([
     (0, common_1.Controller)('analytics'),
     (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard),

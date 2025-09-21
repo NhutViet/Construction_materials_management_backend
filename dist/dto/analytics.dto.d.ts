@@ -53,17 +53,57 @@ export declare class PaymentAnalyticsDto {
         totalDebt: number;
         avgDebtPerInvoice: number;
         maxDebt: number;
+        minDebt: number;
         debtCount: number;
+        unpaidCount: number;
+        partialCount: number;
     };
     paymentMethodStats: Array<{
         _id: string;
         count: number;
         totalAmount: number;
+        paidAmount: number;
+        remainingAmount: number;
         avgAmount: number;
     }>;
     overdueInvoices: {
         count: number;
         totalAmount: number;
+        avgAmount: number;
+    };
+    totalPaidAmount: {
+        totalPaid: number;
+        totalRevenue: number;
+        paymentRate: number;
+    };
+    debtByCustomer: Array<{
+        _id: {
+            customerId: string;
+            customerName: string;
+            customerPhone: string;
+        };
+        totalDebt: number;
+        invoiceCount: number;
+        avgDebt: number;
+        maxDebt: number;
+        lastOrderDate: Date;
+    }>;
+    paymentHistory: Array<{
+        _id: {
+            year: number;
+            month: number;
+        };
+        totalRevenue: number;
+        totalPaid: number;
+        totalDebt: number;
+        invoiceCount: number;
+    }>;
+    summary: {
+        totalDebt: number;
+        totalPaid: number;
+        totalRevenue: number;
+        paymentRate: number;
+        debtRate: number;
     };
 }
 export declare class InventoryAnalyticsDto {
@@ -249,6 +289,176 @@ export declare class TimeBasedAnalyticsDto {
         };
         revenueGrowth: number;
         orderGrowth: number;
+    };
+}
+export declare class DebtAnalyticsDto {
+    debtOverview: {
+        totalDebt: number;
+        totalInvoices: number;
+        avgDebtPerInvoice: number;
+        maxDebt: number;
+        minDebt: number;
+        unpaidCount: number;
+        partialCount: number;
+    };
+    debtByCustomer: Array<{
+        _id: {
+            customerId: string;
+            customerName: string;
+            customerPhone: string;
+            customerAddress: string;
+        };
+        totalDebt: number;
+        invoiceCount: number;
+        avgDebt: number;
+        maxDebt: number;
+        lastOrderDate: Date;
+        firstDebtDate: Date;
+        unpaidInvoices: number;
+        partialInvoices: number;
+    }>;
+    debtByStatus: Array<{
+        _id: string;
+        totalDebt: number;
+        invoiceCount: number;
+        avgDebt: number;
+    }>;
+    debtByTimeRange: Array<{
+        _id: {
+            year: number;
+            month: number;
+        };
+        totalDebt: number;
+        invoiceCount: number;
+        avgDebt: number;
+    }>;
+    topDebtCustomers: Array<{
+        _id: {
+            customerId: string;
+            customerName: string;
+            customerPhone: string;
+        };
+        totalDebt: number;
+        invoiceCount: number;
+        lastOrderDate: Date;
+    }>;
+    debtAging: Array<{
+        _id: string;
+        count: number;
+        totalAmount: number;
+        avgAmount: number;
+        invoices: Array<{
+            invoiceNumber: string;
+            customerName: string;
+            remainingAmount: number;
+            daysSinceCreated: number;
+        }>;
+    }>;
+    summary: {
+        totalDebt: number;
+        totalDebtCustomers: number;
+        avgDebtPerCustomer: number;
+    };
+}
+export declare class PaymentHistoryAnalyticsDto {
+    paymentOverview: {
+        totalRevenue: number;
+        totalPaid: number;
+        totalRemaining: number;
+        totalInvoices: number;
+        paidInvoices: number;
+        partialInvoices: number;
+        unpaidInvoices: number;
+        avgPaymentRate: number;
+    };
+    paymentByMethod: Array<{
+        _id: string;
+        totalRevenue: number;
+        totalPaid: number;
+        totalRemaining: number;
+        invoiceCount: number;
+        avgPaymentRate: number;
+    }>;
+    paymentByTimeRange: Array<{
+        _id: {
+            year: number;
+            month: number;
+        };
+        totalRevenue: number;
+        totalPaid: number;
+        totalRemaining: number;
+        invoiceCount: number;
+        paymentRate: number;
+    }>;
+    paymentByCustomer: Array<{
+        _id: {
+            customerId: string;
+            customerName: string;
+            customerPhone: string;
+        };
+        totalRevenue: number;
+        totalPaid: number;
+        totalRemaining: number;
+        invoiceCount: number;
+        avgPaymentRate: number;
+        lastPaymentDate: Date;
+    }>;
+    recentPayments: Array<{
+        invoiceNumber: string;
+        customerName: string;
+        totalAmount: number;
+        paidAmount: number;
+        remainingAmount: number;
+        paymentStatus: string;
+        createdAt: Date;
+    }>;
+    summary: {
+        totalPaid: number;
+        totalRevenue: number;
+        paymentRate: number;
+        totalCustomers: number;
+    };
+}
+export declare class OverdueDebtReportDto {
+    overdueOverview: {
+        totalOverdueAmount: number;
+        totalOverdueInvoices: number;
+        avgOverdueAmount: number;
+        maxOverdueAmount: number;
+        minOverdueAmount: number;
+    };
+    overdueByCustomer: Array<{
+        _id: {
+            customerId: string;
+            customerName: string;
+            customerPhone: string;
+            customerAddress: string;
+        };
+        totalOverdueAmount: number;
+        overdueInvoices: number;
+        avgOverdueAmount: number;
+        oldestOverdueDate: Date;
+        newestOverdueDate: Date;
+    }>;
+    overdueByTimeRange: Array<{
+        _id: string;
+        count: number;
+        totalAmount: number;
+        avgAmount: number;
+    }>;
+    criticalOverdue: Array<{
+        invoiceNumber: string;
+        customerName: string;
+        totalAmount: number;
+        remainingAmount: number;
+        paymentStatus: string;
+        createdAt: Date;
+    }>;
+    summary: {
+        totalOverdueAmount: number;
+        totalOverdueInvoices: number;
+        totalOverdueCustomers: number;
+        criticalOverdueCount: number;
     };
 }
 export declare class DashboardDataDto {
