@@ -625,7 +625,14 @@ let AnalyticsService = AnalyticsService_1 = class AnalyticsService {
                 {
                     $group: {
                         _id: null,
-                        totalCustomers: { $addToSet: '$customerId' },
+                        totalCustomers: {
+                            $addToSet: {
+                                customerId: '$customerId',
+                                customerName: '$customerName',
+                                customerPhone: '$customerPhone',
+                                customerAddress: '$customerAddress'
+                            }
+                        },
                         totalInvoices: { $sum: 1 },
                         avgInvoicesPerCustomer: { $avg: 1 }
                     }
@@ -764,7 +771,16 @@ let AnalyticsService = AnalyticsService_1 = class AnalyticsService {
         ]);
         const totalCustomers = await this.invoiceModel.aggregate([
             { $match: { ...filter, status: { $ne: 'cancelled' } } },
-            { $group: { _id: '$customerId' } },
+            {
+                $group: {
+                    _id: {
+                        customerId: '$customerId',
+                        customerName: '$customerName',
+                        customerPhone: '$customerPhone',
+                        customerAddress: '$customerAddress'
+                    }
+                }
+            },
             { $count: 'total' }
         ]);
         return {

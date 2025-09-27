@@ -4,7 +4,7 @@ import { NotificationType, NotificationPriority } from '../models/notification.m
 export declare class NotificationController {
     private readonly notificationService;
     constructor(notificationService: NotificationService);
-    create(createNotificationDto: CreateNotificationDto): Promise<{
+    create(createNotificationDto: CreateNotificationDto, user: any): Promise<{
         success: boolean;
         message: string;
         data: import("../models/notification.model").Notification;
@@ -46,42 +46,32 @@ export declare class NotificationController {
         message: string;
         data: import("../models/notification.model").Notification[];
     }>;
-    findByUser(userId: string): Promise<{
-        success: boolean;
-        message: string;
-        data: {
-            notifications: import("../models/notification.model").Notification[];
-            total: number;
-            page: number;
-            limit: number;
-        };
-    }>;
-    findOne(id: string): Promise<{
-        success: boolean;
-        message: string;
-        data: import("../models/notification.model").Notification;
-    }>;
-    update(id: string, updateNotificationDto: UpdateNotificationDto): Promise<{
-        success: boolean;
-        message: string;
-        data: import("../models/notification.model").Notification;
-    }>;
-    markAsRead(id: string): Promise<{
-        success: boolean;
-        message: string;
-        data: import("../models/notification.model").Notification;
-    }>;
-    markAsUnread(id: string): Promise<{
-        success: boolean;
-        message: string;
-        data: import("../models/notification.model").Notification;
-    }>;
     markAllAsRead(user: any): Promise<{
         success: boolean;
         message: string;
         data: {
             modifiedCount: number;
         };
+    }>;
+    findOne(id: string, user: any): Promise<{
+        success: boolean;
+        message: string;
+        data: import("../models/notification.model").Notification;
+    }>;
+    update(id: string, updateNotificationDto: UpdateNotificationDto, user: any): Promise<{
+        success: boolean;
+        message: string;
+        data: import("../models/notification.model").Notification;
+    }>;
+    markAsRead(id: string, user: any): Promise<{
+        success: boolean;
+        message: string;
+        data: import("../models/notification.model").Notification;
+    }>;
+    markAsUnread(id: string, user: any): Promise<{
+        success: boolean;
+        message: string;
+        data: import("../models/notification.model").Notification;
     }>;
     createBroadcastNotification(body: {
         title: string;
@@ -93,7 +83,7 @@ export declare class NotificationController {
         message: string;
         data: import("../models/notification.model").Notification;
     }>;
-    remove(id: string): Promise<{
+    remove(id: string, user: any): Promise<{
         success: boolean;
         message: string;
     }>;

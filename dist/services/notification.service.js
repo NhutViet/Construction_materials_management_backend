@@ -81,6 +81,17 @@ let NotificationService = class NotificationService {
         }
         return notification;
     }
+    async findOneIncludingDeleted(id) {
+        return this.notificationModel
+            .findOne({ _id: id })
+            .populate('userId', 'username fullname')
+            .exec();
+    }
+    async findOneIncludingDeletedForAuth(id) {
+        return this.notificationModel
+            .findOne({ _id: id })
+            .exec();
+    }
     async update(id, updateNotificationDto) {
         const updateData = { ...updateNotificationDto };
         if (updateNotificationDto.relatedEntityId) {

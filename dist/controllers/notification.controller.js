@@ -24,7 +24,8 @@ let NotificationController = class NotificationController {
     constructor(notificationService) {
         this.notificationService = notificationService;
     }
-    async create(createNotificationDto) {
+    async create(createNotificationDto, user) {
+        createNotificationDto.userId = user.id;
         const notification = await this.notificationService.create(createNotificationDto);
         return {
             success: true,
@@ -33,9 +34,7 @@ let NotificationController = class NotificationController {
         };
     }
     async findAll(query, user) {
-        if (!query.userId) {
-            query.userId = user.id;
-        }
+        query.userId = user.id;
         const result = await this.notificationService.findAll(query);
         return {
             success: true,
@@ -83,52 +82,59 @@ let NotificationController = class NotificationController {
             data: notifications
         };
     }
-    async findByUser(userId) {
-        const result = await this.notificationService.findAll({ userId });
-        return {
-            success: true,
-            message: 'Lấy thông báo của user thành công',
-            data: result
-        };
-    }
-    async findOne(id) {
-        const notification = await this.notificationService.findOne(id);
-        return {
-            success: true,
-            message: 'Lấy thông báo thành công',
-            data: notification
-        };
-    }
-    async update(id, updateNotificationDto) {
-        const notification = await this.notificationService.update(id, updateNotificationDto);
-        return {
-            success: true,
-            message: 'Cập nhật thông báo thành công',
-            data: notification
-        };
-    }
-    async markAsRead(id) {
-        const notification = await this.notificationService.markAsRead(id);
-        return {
-            success: true,
-            message: 'Đánh dấu đã đọc thành công',
-            data: notification
-        };
-    }
-    async markAsUnread(id) {
-        const notification = await this.notificationService.markAsUnread(id);
-        return {
-            success: true,
-            message: 'Đánh dấu chưa đọc thành công',
-            data: notification
-        };
-    }
     async markAllAsRead(user) {
         const result = await this.notificationService.markAllAsRead(user.id);
         return {
             success: true,
             message: 'Đánh dấu tất cả đã đọc thành công',
             data: result
+        };
+    }
+    async findOne(id, user) {
+        const notification = await this.notificationService.findOne(id);
+        if (notification.userId && notification.userId.toString() !== user.id) {
+            throw new common_1.NotFoundException('Thông báo không tồn tại');
+        }
+        return {
+            success: true,
+            message: 'Lấy thông báo thành công',
+            data: notification
+        };
+    }
+    async update(id, updateNotificationDto, user) {
+        const notification = await this.notificationService.findOne(id);
+        if (notification.userId && notification.userId.toString() !== user.id) {
+            throw new common_1.NotFoundException('Thông báo không tồn tại');
+        }
+        const updatedNotification = await this.notificationService.update(id, updateNotificationDto);
+        return {
+            success: true,
+            message: 'Cập nhật thông báo thành công',
+            data: updatedNotification
+        };
+    }
+    async markAsRead(id, user) {
+        const notification = await this.notificationService.findOne(id);
+        if (notification.userId && notification.userId.toString() !== user.id) {
+            throw new common_1.NotFoundException('Thông báo không tồn tại');
+        }
+        const updatedNotification = await this.notificationService.markAsRead(id);
+        return {
+            success: true,
+            message: 'Đánh dấu đã đọc thành công',
+            data: updatedNotification
+        };
+    }
+    async markAsUnread(id, user) {
+        const notification = await this.notificationService.findOne(id);
+        if (notification.userId && notification.userId.toString() !== user.id) {
+            throw new common_1.NotFoundException('Thông báo không tồn tại');
+        }
+        const updatedNotification = await this.notificationService.markAsUnread(id);
+        return {
+            success: true,
+            message: 'Đánh dấu chưa đọc thành công',
+            data: updatedNotification
         };
     }
     async createBroadcastNotification(body) {
@@ -139,7 +145,21 @@ let NotificationController = class NotificationController {
             data: notification
         };
     }
-    async remove(id) {
+    async remove(id, user) {
+        const notification = await this.notificationService.findOneIncludingDeletedForAuth(id);
+        if (!notification) {
+            throw new common_1.NotFoundException('Thông báo không tồn tại');
+        }
+        if (notification.userId) {
+            const notificationUserId = notification.userId.toString();
+            const currentUserId = user.id.toString();
+            if (notificationUserId !== currentUserId) {
+                throw new common_1.NotFoundException('Bạn không có quyền xóa thông báo này');
+            }
+        }
+        if (notification.isDeleted) {
+            throw new common_1.NotFoundException('Thông báo đã bị xóa trước đó');
+        }
         await this.notificationService.remove(id);
         return {
             success: true,
@@ -160,8 +180,9 @@ __decorate([
     (0, common_1.Post)(),
     (0, common_1.HttpCode)(common_1.HttpStatus.CREATED),
     __param(0, (0, common_1.Body)()),
+    __param(1, (0, current_user_decorator_1.CurrentUser)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [notification_dto_1.CreateNotificationDto]),
+    __metadata("design:paramtypes", [notification_dto_1.CreateNotificationDto, Object]),
     __metadata("design:returntype", Promise)
 ], NotificationController.prototype, "create", null);
 __decorate([
@@ -208,48 +229,45 @@ __decorate([
     __metadata("design:returntype", Promise)
 ], NotificationController.prototype, "findByPriority", null);
 __decorate([
-    (0, common_1.Get)('user/:userId'),
-    __param(0, (0, common_1.Param)('userId')),
-    __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String]),
-    __metadata("design:returntype", Promise)
-], NotificationController.prototype, "findByUser", null);
-__decorate([
-    (0, common_1.Get)(':id'),
-    __param(0, (0, common_1.Param)('id')),
-    __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String]),
-    __metadata("design:returntype", Promise)
-], NotificationController.prototype, "findOne", null);
-__decorate([
-    (0, common_1.Patch)(':id'),
-    __param(0, (0, common_1.Param)('id')),
-    __param(1, (0, common_1.Body)()),
-    __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String, notification_dto_1.UpdateNotificationDto]),
-    __metadata("design:returntype", Promise)
-], NotificationController.prototype, "update", null);
-__decorate([
-    (0, common_1.Patch)(':id/read'),
-    __param(0, (0, common_1.Param)('id')),
-    __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String]),
-    __metadata("design:returntype", Promise)
-], NotificationController.prototype, "markAsRead", null);
-__decorate([
-    (0, common_1.Patch)(':id/unread'),
-    __param(0, (0, common_1.Param)('id')),
-    __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String]),
-    __metadata("design:returntype", Promise)
-], NotificationController.prototype, "markAsUnread", null);
-__decorate([
     (0, common_1.Patch)('mark-all-read'),
     __param(0, (0, current_user_decorator_1.CurrentUser)()),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Object]),
     __metadata("design:returntype", Promise)
 ], NotificationController.prototype, "markAllAsRead", null);
+__decorate([
+    (0, common_1.Get)(':id'),
+    __param(0, (0, common_1.Param)('id')),
+    __param(1, (0, current_user_decorator_1.CurrentUser)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, Object]),
+    __metadata("design:returntype", Promise)
+], NotificationController.prototype, "findOne", null);
+__decorate([
+    (0, common_1.Patch)(':id'),
+    __param(0, (0, common_1.Param)('id')),
+    __param(1, (0, common_1.Body)()),
+    __param(2, (0, current_user_decorator_1.CurrentUser)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, notification_dto_1.UpdateNotificationDto, Object]),
+    __metadata("design:returntype", Promise)
+], NotificationController.prototype, "update", null);
+__decorate([
+    (0, common_1.Patch)(':id/read'),
+    __param(0, (0, common_1.Param)('id')),
+    __param(1, (0, current_user_decorator_1.CurrentUser)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, Object]),
+    __metadata("design:returntype", Promise)
+], NotificationController.prototype, "markAsRead", null);
+__decorate([
+    (0, common_1.Patch)(':id/unread'),
+    __param(0, (0, common_1.Param)('id')),
+    __param(1, (0, current_user_decorator_1.CurrentUser)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, Object]),
+    __metadata("design:returntype", Promise)
+], NotificationController.prototype, "markAsUnread", null);
 __decorate([
     (0, common_1.Post)('system/broadcast'),
     __param(0, (0, common_1.Body)()),
@@ -259,10 +277,11 @@ __decorate([
 ], NotificationController.prototype, "createBroadcastNotification", null);
 __decorate([
     (0, common_1.Delete)(':id'),
-    (0, common_1.HttpCode)(common_1.HttpStatus.NO_CONTENT),
+    (0, common_1.HttpCode)(common_1.HttpStatus.OK),
     __param(0, (0, common_1.Param)('id')),
+    __param(1, (0, current_user_decorator_1.CurrentUser)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String]),
+    __metadata("design:paramtypes", [String, Object]),
     __metadata("design:returntype", Promise)
 ], NotificationController.prototype, "remove", null);
 __decorate([
