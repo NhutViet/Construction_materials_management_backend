@@ -12,6 +12,8 @@ export declare class NotificationService {
         limit: number;
     }>;
     findOne(id: string): Promise<Notification>;
+    findOneIncludingDeleted(id: string): Promise<Notification | null>;
+    findOneIncludingDeletedForAuth(id: string): Promise<Notification | null>;
     update(id: string, updateNotificationDto: UpdateNotificationDto): Promise<Notification>;
     remove(id: string): Promise<void>;
     markAsRead(id: string): Promise<Notification>;

@@ -769,7 +769,14 @@ export class AnalyticsService {
         {
           $group: {
             _id: null,
-            totalCustomers: { $addToSet: '$customerId' },
+            totalCustomers: { 
+              $addToSet: {
+                customerId: '$customerId',
+                customerName: '$customerName',
+                customerPhone: '$customerPhone',
+                customerAddress: '$customerAddress'
+              }
+            },
             totalInvoices: { $sum: 1 },
             avgInvoicesPerCustomer: { $avg: 1 }
           }
@@ -937,7 +944,16 @@ export class AnalyticsService {
     // Thêm thông tin phân trang
     const totalCustomers = await this.invoiceModel.aggregate([
       { $match: { ...filter, status: { $ne: 'cancelled' } } },
-      { $group: { _id: '$customerId' } },
+      { 
+        $group: { 
+          _id: {
+            customerId: '$customerId',
+            customerName: '$customerName',
+            customerPhone: '$customerPhone',
+            customerAddress: '$customerAddress'
+          }
+        } 
+      },
       { $count: 'total' }
     ]);
 
