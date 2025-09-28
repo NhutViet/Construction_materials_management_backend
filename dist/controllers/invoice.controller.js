@@ -118,6 +118,22 @@ let InvoiceController = InvoiceController_1 = class InvoiceController {
         this.logger.log(`📄 GET /invoices/${id}/export-pdf - Xuất hoá đơn ra PDF`);
         return { message: 'Chức năng xuất PDF sẽ được triển khai sau' };
     }
+    updateItemDelivery(id, itemIndex, updateDeliveryDto, user) {
+        const itemIndexNum = parseInt(itemIndex);
+        if (isNaN(itemIndexNum) || itemIndexNum < 0) {
+            throw new common_1.BadRequestException('Chỉ số item không hợp lệ');
+        }
+        this.logger.log(`🚚 PATCH /invoices/${id}/items/${itemIndex}/delivery - Cập nhật giao hàng cho item ${itemIndex} bởi user: ${user.id}`);
+        return this.invoiceService.updateItemDelivery(id, itemIndexNum, updateDeliveryDto, user.id);
+    }
+    getDeliveryStatus(id, user) {
+        this.logger.log(`📊 GET /invoices/${id}/delivery-status - Lấy thông tin trạng thái giao hàng cho user: ${user.id}`);
+        return this.invoiceService.getDeliveryStatus(id, user.id);
+    }
+    getDeliveredAmount(id, user) {
+        this.logger.log(`💰 GET /invoices/${id}/delivered-amount - Tính tổng tiền hàng hoá đã giao cho user: ${user.id}`);
+        return this.invoiceService.getDeliveredAmount(id, user.id);
+    }
 };
 exports.InvoiceController = InvoiceController;
 __decorate([
@@ -285,6 +301,32 @@ __decorate([
     __metadata("design:paramtypes", [String]),
     __metadata("design:returntype", void 0)
 ], InvoiceController.prototype, "exportInvoiceToPDF", null);
+__decorate([
+    (0, common_1.Patch)(':id/items/:itemIndex/delivery'),
+    __param(0, (0, common_1.Param)('id')),
+    __param(1, (0, common_1.Param)('itemIndex')),
+    __param(2, (0, common_1.Body)()),
+    __param(3, (0, current_user_decorator_1.CurrentUser)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, String, invoice_dto_1.UpdateItemDeliveryDto, Object]),
+    __metadata("design:returntype", void 0)
+], InvoiceController.prototype, "updateItemDelivery", null);
+__decorate([
+    (0, common_1.Get)(':id/delivery-status'),
+    __param(0, (0, common_1.Param)('id')),
+    __param(1, (0, current_user_decorator_1.CurrentUser)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, Object]),
+    __metadata("design:returntype", void 0)
+], InvoiceController.prototype, "getDeliveryStatus", null);
+__decorate([
+    (0, common_1.Get)(':id/delivered-amount'),
+    __param(0, (0, common_1.Param)('id')),
+    __param(1, (0, current_user_decorator_1.CurrentUser)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, Object]),
+    __metadata("design:returntype", void 0)
+], InvoiceController.prototype, "getDeliveredAmount", null);
 exports.InvoiceController = InvoiceController = InvoiceController_1 = __decorate([
     (0, common_1.Controller)('invoices'),
     (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard),

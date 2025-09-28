@@ -3,7 +3,7 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { Invoice } from '../models/invoice.model';
 import { Material } from '../models/material.model';
-import { CreateInvoiceDto, UpdateInvoiceDto, UpdateInvoiceStatusDto, UpdatePaymentStatusDto, InvoiceQueryDto, CreateInvoiceItemDto, PaymentDto } from '../dto/invoice.dto';
+import { CreateInvoiceDto, UpdateInvoiceDto, UpdateInvoiceStatusDto, UpdatePaymentStatusDto, InvoiceQueryDto, CreateInvoiceItemDto, PaymentDto, UpdateItemDeliveryDto } from '../dto/invoice.dto';
 import { PaymentMethod } from '../constants/payment.constants';
 
 @Injectable()
@@ -163,7 +163,9 @@ export class InvoiceService {
           quantity: item.quantity,
           unitPrice: material.price || 0, // Lấy giá từ database
           unit: material.unit || 'cái', // Lấy đơn vị từ database
-          totalPrice: item.quantity * (material.price || 0)
+          totalPrice: item.quantity * (material.price || 0),
+          deliveredQuantity: 0, // Khởi tạo số lượng đã giao = 0
+          deliveryStatus: 'pending' // Khởi tạo trạng thái giao hàng = pending
         };
       })
     );
@@ -208,9 +210,6 @@ export class InvoiceService {
     });
 
     const savedInvoice = await invoice.save();
-    
-    // Cập nhật số lượng tồn kho sau khi tạo hoá đơn thành công
-    await this.updateMaterialInventory(updatedItems, 'decrease');
     
     this.logger.log(`Hoá đơn ${invoiceNumber} đã được tạo thành công`);
     
@@ -329,9 +328,6 @@ export class InvoiceService {
     // Nếu cập nhật items, tính toán lại giá trị
     let updatedItems: any[] = [];
     if (updateInvoiceDto.items) {
-      // Khôi phục tồn kho từ items cũ trước khi kiểm tra items mới
-      await this.updateMaterialInventory(invoice.items, 'increase');
-      
       // Kiểm tra tồn kho cho items mới
       await this.checkInventoryAvailability(updateInvoiceDto.items, userId);
       
@@ -349,7 +345,9 @@ export class InvoiceService {
             quantity: item.quantity,
             unitPrice: material.price || 0, // Lấy giá từ database
             unit: material.unit || 'cái', // Lấy đơn vị từ database
-            totalPrice: item.quantity * (material.price || 0)
+            totalPrice: item.quantity * (material.price || 0),
+            deliveredQuantity: 0, // Khởi tạo số lượng đã giao = 0
+            deliveryStatus: 'pending' // Khởi tạo trạng thái giao hàng = pending
           };
         })
       );
@@ -380,11 +378,6 @@ export class InvoiceService {
 
     if (!updatedInvoice) {
       throw new NotFoundException(`Không thể cập nhật hoá đơn với ID ${id}`);
-    }
-
-    // Cập nhật tồn kho với items mới nếu có thay đổi
-    if (updateInvoiceDto.items && updatedItems.length > 0) {
-      await this.updateMaterialInventory(updatedItems, 'decrease');
     }
 
     this.logger.log(`Hoá đơn ${id} đã được cập nhật thành công cho user: ${userId}`);
@@ -420,11 +413,37 @@ export class InvoiceService {
       updateData.approvedAt = new Date();
     }
 
-    // Nếu hủy hoá đơn, trả hàng về kho
+    // Nếu chuyển sang trạng thái delivered, tự động cập nhật deliveredQuantity cho tất cả items
+    if (updateStatusDto.status === 'delivered') {
+      this.logger.log(`🚚 Tự động cập nhật deliveredQuantity cho tất cả items khi chuyển sang trạng thái delivered`);
+      
+      // Kiểm tra tồn kho trước khi chuyển sang delivered
+      await this.checkInventoryAvailability(invoice.items, userId);
+      this.logger.log(`✅ Đã kiểm tra tồn kho - đủ hàng để giao toàn bộ hoá đơn`);
+      
+      const updatedItems = invoice.items.map(item => ({
+        ...item,
+        deliveredQuantity: item.quantity, // Tự động fill deliveredQuantity = quantity
+        deliveryStatus: 'delivered' as const,
+        deliveredAt: new Date(),
+        deliveredBy: new Types.ObjectId(userId)
+      }));
+
+      updateData.items = updatedItems;
+      updateData.deliveryDate = new Date();
+
+      // Trừ tồn kho vật liệu cho tất cả items
+      await this.updateMaterialInventory(
+        invoice.items.map(item => ({ materialId: item.materialId, quantity: item.quantity })),
+        'decrease'
+      );
+
+      this.logger.log(`📦 Đã trừ tồn kho cho ${invoice.items.length} vật liệu khi chuyển sang trạng thái delivered`);
+    }
+
+    // Nếu hủy hoá đơn, chỉ cập nhật trạng thái
     if (updateStatusDto.status === 'cancelled') {
-      this.logger.log(`🔄 Hủy hoá đơn ${id} - Trả hàng về kho`);
-      await this.updateMaterialInventory(invoice.items, 'increase');
-      this.logger.log(`✅ Đã trả ${invoice.items.length} loại vật liệu về kho khi hủy hoá đơn ${id}`);
+      this.logger.log(`🔄 Hủy hoá đơn ${id}`);
     }
 
     const updatedInvoice = await this.invoiceModel
@@ -622,9 +641,6 @@ export class InvoiceService {
       throw new BadRequestException('Không thể xóa hoá đơn đã hoàn thành hoặc đã thanh toán');
     }
 
-    // Khôi phục tồn kho khi xóa hoá đơn
-    await this.updateMaterialInventory(invoice.items, 'increase');
-
     await this.invoiceModel.findByIdAndUpdate(id, { isDeleted: true });
     this.logger.log(`Hoá đơn ${id} đã được xóa thành công cho user: ${userId}`);
   }
@@ -692,5 +708,242 @@ export class InvoiceService {
       paidInvoices,
       paymentMethods
     };
+  }
+
+  // Cập nhật trạng thái giao hàng cho item
+  async updateItemDelivery(
+    invoiceId: string, 
+    itemIndex: number, 
+    updateDeliveryDto: UpdateItemDeliveryDto, 
+    userId: string
+  ): Promise<Invoice> {
+    this.logger.log(`🚚 Cập nhật giao hàng cho item ${itemIndex} của hoá đơn ${invoiceId} bởi user: ${userId}`);
+
+    // Kiểm tra quyền sở hữu
+    const invoice = await this.invoiceModel
+      .findOne({ _id: invoiceId, isDeleted: false, createdBy: new Types.ObjectId(userId) })
+      .exec();
+
+    if (!invoice) {
+      throw new ForbiddenException('Bạn không có quyền cập nhật hoá đơn này');
+    }
+
+    // Kiểm tra item index có hợp lệ không
+    if (itemIndex < 0 || itemIndex >= invoice.items.length) {
+      throw new BadRequestException(`Chỉ số item không hợp lệ: ${itemIndex}`);
+    }
+
+    const item = invoice.items[itemIndex];
+    
+    // Validation số lượng giao hàng
+    if (updateDeliveryDto.deliveredQuantity <= 0) {
+      throw new BadRequestException('Số lượng giao hàng phải lớn hơn 0');
+    }
+
+    if (updateDeliveryDto.deliveredQuantity > item.quantity) {
+      throw new BadRequestException(`Số lượng giao hàng (${updateDeliveryDto.deliveredQuantity}) không thể vượt quá số lượng đặt hàng (${item.quantity})`);
+    }
+
+    // Kiểm tra số lượng đã giao trước đó
+    const currentDeliveredQuantity = item.deliveredQuantity || 0;
+    const remainingQuantity = item.quantity - currentDeliveredQuantity;
+    
+    if (updateDeliveryDto.deliveredQuantity > remainingQuantity) {
+      throw new BadRequestException(`Số lượng giao hàng (${updateDeliveryDto.deliveredQuantity}) vượt quá số lượng còn lại cần giao (${remainingQuantity})`);
+    }
+
+    // Kiểm tra tồn kho trước khi cập nhật giao hàng
+    await this.checkInventoryAvailability(
+      [{ materialId: item.materialId, quantity: updateDeliveryDto.deliveredQuantity }], 
+      userId
+    );
+    this.logger.log(`✅ Đã kiểm tra tồn kho - đủ hàng để giao ${updateDeliveryDto.deliveredQuantity} ${item.unit}`);
+
+    // Cập nhật thông tin giao hàng cho item
+    const newDeliveredQuantity = currentDeliveredQuantity + updateDeliveryDto.deliveredQuantity;
+    let newDeliveryStatus: 'pending' | 'partial' | 'delivered';
+
+    if (newDeliveredQuantity >= item.quantity) {
+      newDeliveryStatus = 'delivered';
+    } else if (newDeliveredQuantity > 0) {
+      newDeliveryStatus = 'partial';
+    } else {
+      newDeliveryStatus = 'pending';
+    }
+
+    // Cập nhật item trong mảng items
+    const updatedItems = [...invoice.items];
+    updatedItems[itemIndex] = {
+      ...updatedItems[itemIndex],
+      deliveredQuantity: newDeliveredQuantity,
+      deliveryStatus: newDeliveryStatus,
+      deliveredAt: new Date(),
+      deliveredBy: new Types.ObjectId(userId)
+    };
+
+    // Kiểm tra trạng thái giao hàng tổng thể của hoá đơn
+    const allItemsDelivered = updatedItems.every(item => item.deliveryStatus === 'delivered');
+    const someItemsDelivered = updatedItems.some(item => item.deliveryStatus === 'delivered' || item.deliveryStatus === 'partial');
+
+    let newInvoiceStatus = invoice.status;
+    if (allItemsDelivered && invoice.status !== 'delivered') {
+      newInvoiceStatus = 'delivered';
+    } else if (someItemsDelivered && invoice.status === 'pending') {
+      newInvoiceStatus = 'shipped';
+    }
+
+    // Cập nhật hoá đơn
+    const updateData: any = {
+      items: updatedItems,
+      status: newInvoiceStatus
+    };
+
+    // Nếu tất cả items đã được giao, cập nhật deliveryDate
+    if (allItemsDelivered && !invoice.deliveryDate) {
+      updateData.deliveryDate = new Date();
+    }
+
+    const updatedInvoice = await this.invoiceModel
+      .findByIdAndUpdate(invoiceId, updateData, { new: true })
+      .populate('customerId', 'name email')
+      .populate('createdBy', 'name email')
+      .populate('approvedBy', 'name email')
+      .exec();
+
+    if (!updatedInvoice) {
+      throw new NotFoundException(`Không thể cập nhật giao hàng cho hoá đơn với ID ${invoiceId}`);
+    }
+
+    // Trừ tồn kho vật liệu
+    await this.updateMaterialInventory(
+      [{ materialId: item.materialId, quantity: updateDeliveryDto.deliveredQuantity }],
+      'decrease'
+    );
+
+    this.logger.log(`✅ Cập nhật giao hàng thành công: ${updateDeliveryDto.deliveredQuantity} ${item.unit} cho ${item.materialName}`);
+    this.logger.log(`📦 Tồn kho đã được trừ: ${updateDeliveryDto.deliveredQuantity} ${item.unit}`);
+    
+    return updatedInvoice;
+  }
+
+  // Lấy thông tin chi tiết về trạng thái giao hàng của hoá đơn
+  async getDeliveryStatus(invoiceId: string, userId: string) {
+    this.logger.log(`📊 Lấy thông tin trạng thái giao hàng cho hoá đơn ${invoiceId} bởi user: ${userId}`);
+
+    const invoice = await this.invoiceModel
+      .findOne({ _id: invoiceId, isDeleted: false, createdBy: new Types.ObjectId(userId) })
+      .exec();
+
+    if (!invoice) {
+      throw new ForbiddenException('Bạn không có quyền truy cập hoá đơn này');
+    }
+
+    const deliverySummary = {
+      totalItems: invoice.items.length,
+      deliveredItems: invoice.items.filter(item => item.deliveryStatus === 'delivered').length,
+      partialItems: invoice.items.filter(item => item.deliveryStatus === 'partial').length,
+      pendingItems: invoice.items.filter(item => item.deliveryStatus === 'pending' || !item.deliveryStatus).length,
+      totalQuantity: invoice.items.reduce((sum, item) => sum + item.quantity, 0),
+      deliveredQuantity: invoice.items.reduce((sum, item) => sum + (item.deliveredQuantity || 0), 0),
+      remainingQuantity: invoice.items.reduce((sum, item) => sum + (item.quantity - (item.deliveredQuantity || 0)), 0),
+      items: invoice.items.map((item, index) => ({
+        index,
+        materialName: item.materialName,
+        quantity: item.quantity,
+        deliveredQuantity: item.deliveredQuantity || 0,
+        remainingQuantity: item.quantity - (item.deliveredQuantity || 0),
+        deliveryStatus: item.deliveryStatus || 'pending',
+        deliveredAt: item.deliveredAt,
+        unit: item.unit
+      }))
+    };
+
+    return deliverySummary;
+  }
+
+  // Tính tổng tiền hàng hoá đã giao
+  async getDeliveredAmount(invoiceId: string, userId: string) {
+    this.logger.log(`💰 Tính tổng tiền hàng hoá đã giao cho hoá đơn ${invoiceId} bởi user: ${userId}`);
+
+    const invoice = await this.invoiceModel
+      .findOne({ _id: invoiceId, isDeleted: false, createdBy: new Types.ObjectId(userId) })
+      .exec();
+
+    if (!invoice) {
+      throw new ForbiddenException('Bạn không có quyền truy cập hoá đơn này');
+    }
+
+    // Tính tổng tiền hàng đã giao
+    let deliveredAmount = 0;
+    let totalDeliveredQuantity = 0;
+    let totalOrderedQuantity = 0;
+    const deliveredItems: any[] = [];
+
+    for (const item of invoice.items) {
+      const deliveredQuantity = item.deliveredQuantity || 0;
+      const orderedQuantity = item.quantity;
+      const unitPrice = item.unitPrice;
+      
+      // Tính tiền cho số lượng đã giao
+      const itemDeliveredAmount = deliveredQuantity * unitPrice;
+      deliveredAmount += itemDeliveredAmount;
+      
+      totalDeliveredQuantity += deliveredQuantity;
+      totalOrderedQuantity += orderedQuantity;
+
+      // Thêm thông tin chi tiết item đã giao
+      if (deliveredQuantity > 0) {
+        deliveredItems.push({
+          materialId: item.materialId,
+          materialName: item.materialName,
+          unit: item.unit,
+          orderedQuantity: orderedQuantity,
+          deliveredQuantity: deliveredQuantity,
+          remainingQuantity: orderedQuantity - deliveredQuantity,
+          unitPrice: unitPrice,
+          deliveredAmount: itemDeliveredAmount,
+          deliveryStatus: item.deliveryStatus || 'pending',
+          deliveredAt: item.deliveredAt
+        });
+      }
+    }
+
+    // Tính tỷ lệ giao hàng
+    const deliveryPercentage = totalOrderedQuantity > 0 
+      ? (totalDeliveredQuantity / totalOrderedQuantity) * 100 
+      : 0;
+
+    // Tính tỷ lệ tiền đã giao so với tổng tiền hoá đơn
+    const deliveredAmountPercentage = invoice.totalAmount > 0 
+      ? (deliveredAmount / invoice.totalAmount) * 100 
+      : 0;
+
+    const result = {
+      invoiceId: invoice._id,
+      invoiceNumber: invoice.invoiceNumber,
+      customerName: invoice.customerName,
+      totalOrderedAmount: invoice.totalAmount,
+      deliveredAmount: Math.round(deliveredAmount * 100) / 100, // Làm tròn đến 2 chữ số thập phân
+      remainingAmount: Math.round((invoice.totalAmount - deliveredAmount) * 100) / 100,
+      totalOrderedQuantity,
+      totalDeliveredQuantity,
+      deliveryPercentage: Math.round(deliveryPercentage * 100) / 100,
+      deliveredAmountPercentage: Math.round(deliveredAmountPercentage * 100) / 100,
+      deliveredItems,
+      summary: {
+        totalItems: invoice.items.length,
+        deliveredItems: deliveredItems.length,
+        pendingItems: invoice.items.filter(item => (item.deliveredQuantity || 0) === 0).length,
+        partialItems: invoice.items.filter(item => {
+          const delivered = item.deliveredQuantity || 0;
+          return delivered > 0 && delivered < item.quantity;
+        }).length,
+        fullyDeliveredItems: invoice.items.filter(item => (item.deliveredQuantity || 0) >= item.quantity).length
+      }
+    };
+
+    this.logger.log(`✅ Tổng tiền hàng đã giao: ${deliveredAmount} VNĐ (${deliveredAmountPercentage.toFixed(2)}% của tổng hoá đơn)`);
+    
+    return result;
   }
 }

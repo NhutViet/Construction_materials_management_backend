@@ -9,6 +9,10 @@ export interface InvoiceItem {
   unitPrice: number;
   totalPrice: number;
   unit: string; // đơn vị: kg, m3, m2, cái, v.v.
+  deliveredQuantity?: number; // Số lượng đã giao
+  deliveryStatus?: 'pending' | 'partial' | 'delivered'; // Trạng thái giao hàng của item
+  deliveredAt?: Date; // Thời gian giao hàng
+  deliveredBy?: Types.ObjectId; // Người thực hiện giao hàng
 }
 
 @Schema({ timestamps: true })
