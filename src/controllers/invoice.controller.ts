@@ -13,7 +13,7 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { InvoiceService } from '../services/invoice.service';
-import { CreateInvoiceDto, UpdateInvoiceDto, UpdateInvoiceStatusDto, UpdatePaymentStatusDto, InvoiceQueryDto, PaymentDto } from '../dto/invoice.dto';
+import { CreateInvoiceDto, UpdateInvoiceDto, UpdateInvoiceStatusDto, UpdatePaymentStatusDto, InvoiceQueryDto, PaymentDto, UpdateItemDeliveryDto } from '../dto/invoice.dto';
 import { JwtAuthGuard } from '../guards/jwt-auth.guard';
 import { CurrentUser } from '../decorators/current-user.decorator';
 import { PaymentMethod, PAYMENT_METHOD_LABELS } from '../constants/payment.constants';
@@ -178,5 +178,36 @@ export class InvoiceController {
     this.logger.log(`📄 GET /invoices/${id}/export-pdf - Xuất hoá đơn ra PDF`);
     // TODO: Implement PDF export functionality
     return { message: 'Chức năng xuất PDF sẽ được triển khai sau' };
+  }
+
+  // API để cập nhật trạng thái giao hàng cho item
+  @Patch(':id/items/:itemIndex/delivery')
+  updateItemDelivery(
+    @Param('id') id: string,
+    @Param('itemIndex') itemIndex: string,
+    @Body() updateDeliveryDto: UpdateItemDeliveryDto,
+    @CurrentUser() user: any
+  ) {
+    const itemIndexNum = parseInt(itemIndex);
+    if (isNaN(itemIndexNum) || itemIndexNum < 0) {
+      throw new BadRequestException('Chỉ số item không hợp lệ');
+    }
+
+    this.logger.log(`🚚 PATCH /invoices/${id}/items/${itemIndex}/delivery - Cập nhật giao hàng cho item ${itemIndex} bởi user: ${user.id}`);
+    return this.invoiceService.updateItemDelivery(id, itemIndexNum, updateDeliveryDto, user.id);
+  }
+
+  // API để lấy thông tin trạng thái giao hàng của hoá đơn
+  @Get(':id/delivery-status')
+  getDeliveryStatus(@Param('id') id: string, @CurrentUser() user: any) {
+    this.logger.log(`📊 GET /invoices/${id}/delivery-status - Lấy thông tin trạng thái giao hàng cho user: ${user.id}`);
+    return this.invoiceService.getDeliveryStatus(id, user.id);
+  }
+
+  // API để tính tổng tiền hàng hoá đã giao
+  @Get(':id/delivered-amount')
+  getDeliveredAmount(@Param('id') id: string, @CurrentUser() user: any) {
+    this.logger.log(`💰 GET /invoices/${id}/delivered-amount - Tính tổng tiền hàng hoá đã giao cho user: ${user.id}`);
+    return this.invoiceService.getDeliveredAmount(id, user.id);
   }
 }

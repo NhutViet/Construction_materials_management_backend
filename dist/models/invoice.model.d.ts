@@ -7,6 +7,10 @@ export interface InvoiceItem {
     unitPrice: number;
     totalPrice: number;
     unit: string;
+    deliveredQuantity?: number;
+    deliveryStatus?: 'pending' | 'partial' | 'delivered';
+    deliveredAt?: Date;
+    deliveredBy?: Types.ObjectId;
 }
 export declare class Invoice extends Document {
     invoiceNumber: string;

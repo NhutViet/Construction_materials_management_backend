@@ -191,6 +191,16 @@ export class PaymentDto {
   paymentMethod?: PaymentMethod; // Phương thức thanh toán (nếu khác với hoá đơn gốc)
 }
 
+export class UpdateItemDeliveryDto {
+  @IsNumber()
+  @Min(0)
+  deliveredQuantity: number; // Số lượng giao hàng
+
+  @IsOptional()
+  @IsString()
+  notes?: string; // Ghi chú giao hàng
+}
+
 export class InvoiceQueryDto {
   @IsOptional()
   @IsString()

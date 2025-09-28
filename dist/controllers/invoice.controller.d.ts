@@ -1,5 +1,5 @@
 import { InvoiceService } from '../services/invoice.service';
-import { CreateInvoiceDto, UpdateInvoiceDto, UpdateInvoiceStatusDto, UpdatePaymentStatusDto, InvoiceQueryDto, PaymentDto } from '../dto/invoice.dto';
+import { CreateInvoiceDto, UpdateInvoiceDto, UpdateInvoiceStatusDto, UpdatePaymentStatusDto, InvoiceQueryDto, PaymentDto, UpdateItemDeliveryDto } from '../dto/invoice.dto';
 import { PaymentMethod } from '../constants/payment.constants';
 export declare class InvoiceController {
     private readonly invoiceService;
@@ -82,4 +82,44 @@ export declare class InvoiceController {
     exportInvoiceToPDF(id: string): {
         message: string;
     };
+    updateItemDelivery(id: string, itemIndex: string, updateDeliveryDto: UpdateItemDeliveryDto, user: any): Promise<import("../models/invoice.model").Invoice>;
+    getDeliveryStatus(id: string, user: any): Promise<{
+        totalItems: number;
+        deliveredItems: number;
+        partialItems: number;
+        pendingItems: number;
+        totalQuantity: number;
+        deliveredQuantity: number;
+        remainingQuantity: number;
+        items: {
+            index: number;
+            materialName: string;
+            quantity: number;
+            deliveredQuantity: number;
+            remainingQuantity: number;
+            deliveryStatus: "pending" | "partial" | "delivered";
+            deliveredAt: Date | undefined;
+            unit: string;
+        }[];
+    }>;
+    getDeliveredAmount(id: string, user: any): Promise<{
+        invoiceId: unknown;
+        invoiceNumber: string;
+        customerName: string;
+        totalOrderedAmount: number;
+        deliveredAmount: number;
+        remainingAmount: number;
+        totalOrderedQuantity: number;
+        totalDeliveredQuantity: number;
+        deliveryPercentage: number;
+        deliveredAmountPercentage: number;
+        deliveredItems: any[];
+        summary: {
+            totalItems: number;
+            deliveredItems: number;
+            pendingItems: number;
+            partialItems: number;
+            fullyDeliveredItems: number;
+        };
+    }>;
 }

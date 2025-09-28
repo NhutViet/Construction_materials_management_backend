@@ -54,6 +54,10 @@ export declare class PaymentDto {
     notes?: string;
     paymentMethod?: PaymentMethod;
 }
+export declare class UpdateItemDeliveryDto {
+    deliveredQuantity: number;
+    notes?: string;
+}
 export declare class InvoiceQueryDto {
     status?: string;
     paymentStatus?: string;
