@@ -23,6 +23,9 @@ export class Material {
   @Prop({ required: true, min: 0 })
   price: number;
 
+  @Prop({ required: true, min: 0 })
+  importCost: number; // Tiền nhập hàng
+
   @Prop()
   description?: string;
 

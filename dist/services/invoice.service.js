@@ -301,6 +301,8 @@ let InvoiceService = InvoiceService_1 = class InvoiceService {
         }
         if (updateStatusDto.status === 'delivered') {
             this.logger.log(`🚚 Tự động cập nhật deliveredQuantity cho tất cả items khi chuyển sang trạng thái delivered`);
+            await this.checkInventoryAvailability(invoice.items, userId);
+            this.logger.log(`✅ Đã kiểm tra tồn kho - đủ hàng để giao toàn bộ hoá đơn`);
             const updatedItems = invoice.items.map(item => ({
                 ...item,
                 deliveredQuantity: item.quantity,
@@ -537,6 +539,8 @@ let InvoiceService = InvoiceService_1 = class InvoiceService {
         if (updateDeliveryDto.deliveredQuantity > remainingQuantity) {
             throw new common_1.BadRequestException(`Số lượng giao hàng (${updateDeliveryDto.deliveredQuantity}) vượt quá số lượng còn lại cần giao (${remainingQuantity})`);
         }
+        await this.checkInventoryAvailability([{ materialId: item.materialId, quantity: updateDeliveryDto.deliveredQuantity }], userId);
+        this.logger.log(`✅ Đã kiểm tra tồn kho - đủ hàng để giao ${updateDeliveryDto.deliveredQuantity} ${item.unit}`);
         const newDeliveredQuantity = currentDeliveredQuantity + updateDeliveryDto.deliveredQuantity;
         let newDeliveryStatus;
         if (newDeliveredQuantity >= item.quantity) {

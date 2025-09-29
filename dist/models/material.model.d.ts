@@ -7,6 +7,7 @@ export declare class Material {
     unit: string;
     quantity: number;
     price: number;
+    importCost: number;
     description?: string;
     supplier?: string;
     isActive: boolean;

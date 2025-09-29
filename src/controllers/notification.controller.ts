@@ -145,11 +145,28 @@ export class NotificationController {
 
   @Patch(':id/read')
   async markAsRead(@Param('id') id: string, @CurrentUser() user: any) {
-    const notification = await this.notificationService.findOne(id);
+    // Kiểm tra thông báo có tồn tại không (kể cả đã bị xóa) để kiểm tra quyền sở hữu
+    const notification = await this.notificationService.findOneIncludingDeletedForAuth(id);
+    
+    if (!notification) {
+      throw new NotFoundException('Thông báo không tồn tại');
+    }
     
     // Kiểm tra xem thông báo có thuộc về user hiện tại không
-    if (notification.userId && notification.userId.toString() !== user.id) {
-      throw new NotFoundException('Thông báo không tồn tại');
+    // Chỉ kiểm tra nếu thông báo có userId (không phải thông báo hệ thống)
+    if (notification.userId) {
+      const notificationUserId = notification.userId.toString();
+      const currentUserId = user.id.toString();
+      
+      // So sánh ObjectId string
+      if (notificationUserId !== currentUserId) {
+        throw new NotFoundException('Bạn không có quyền đánh dấu đọc thông báo này');
+      }
+    }
+    
+    // Kiểm tra thông báo đã bị xóa chưa
+    if (notification.isDeleted) {
+      throw new NotFoundException('Thông báo đã bị xóa');
     }
     
     const updatedNotification = await this.notificationService.markAsRead(id);
@@ -162,11 +179,28 @@ export class NotificationController {
 
   @Patch(':id/unread')
   async markAsUnread(@Param('id') id: string, @CurrentUser() user: any) {
-    const notification = await this.notificationService.findOne(id);
+    // Kiểm tra thông báo có tồn tại không (kể cả đã bị xóa) để kiểm tra quyền sở hữu
+    const notification = await this.notificationService.findOneIncludingDeletedForAuth(id);
+    
+    if (!notification) {
+      throw new NotFoundException('Thông báo không tồn tại');
+    }
     
     // Kiểm tra xem thông báo có thuộc về user hiện tại không
-    if (notification.userId && notification.userId.toString() !== user.id) {
-      throw new NotFoundException('Thông báo không tồn tại');
+    // Chỉ kiểm tra nếu thông báo có userId (không phải thông báo hệ thống)
+    if (notification.userId) {
+      const notificationUserId = notification.userId.toString();
+      const currentUserId = user.id.toString();
+      
+      // So sánh ObjectId string
+      if (notificationUserId !== currentUserId) {
+        throw new NotFoundException('Bạn không có quyền đánh dấu chưa đọc thông báo này');
+      }
+    }
+    
+    // Kiểm tra thông báo đã bị xóa chưa
+    if (notification.isDeleted) {
+      throw new NotFoundException('Thông báo đã bị xóa');
     }
     
     const updatedNotification = await this.notificationService.markAsUnread(id);
