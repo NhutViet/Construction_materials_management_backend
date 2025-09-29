@@ -11,6 +11,7 @@ export class MaterialService {
 
   async create(createMaterialDto: Partial<Material>, userId: string): Promise<Material> {
     console.log('📝 Đang tạo vật liệu mới:', createMaterialDto.name, 'cho user:', userId);
+    console.log('💰 Tiền nhập:', createMaterialDto.importCost, 'Giá bán:', createMaterialDto.price);
     
     // Thêm userId vào material
     const materialData = {
@@ -21,6 +22,7 @@ export class MaterialService {
     const createdMaterial = new this.materialModel(materialData);
     const result = await createdMaterial.save();
     console.log('✅ Đã tạo vật liệu thành công:', result.name, 'với ID:', result._id, 'cho user:', userId);
+    console.log('💰 Tiền nhập:', result.importCost, 'Giá bán:', result.price);
     return result;
   }
 
@@ -66,6 +68,7 @@ export class MaterialService {
       throw new NotFoundException(`Material with ID ${id} not found`);
     }
     console.log('✅ Đã cập nhật vật liệu thành công:', updatedMaterial.name, 'cho user:', userId);
+    console.log('💰 Tiền nhập:', updatedMaterial.importCost, 'Giá bán:', updatedMaterial.price);
     return updatedMaterial;
   }
 

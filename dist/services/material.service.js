@@ -24,6 +24,7 @@ let MaterialService = class MaterialService {
     }
     async create(createMaterialDto, userId) {
         console.log('📝 Đang tạo vật liệu mới:', createMaterialDto.name, 'cho user:', userId);
+        console.log('💰 Tiền nhập:', createMaterialDto.importCost, 'Giá bán:', createMaterialDto.price);
         const materialData = {
             ...createMaterialDto,
             userId: new mongoose_2.Types.ObjectId(userId)
@@ -31,6 +32,7 @@ let MaterialService = class MaterialService {
         const createdMaterial = new this.materialModel(materialData);
         const result = await createdMaterial.save();
         console.log('✅ Đã tạo vật liệu thành công:', result.name, 'với ID:', result._id, 'cho user:', userId);
+        console.log('💰 Tiền nhập:', result.importCost, 'Giá bán:', result.price);
         return result;
     }
     async findAll(userId) {
@@ -69,6 +71,7 @@ let MaterialService = class MaterialService {
             throw new common_1.NotFoundException(`Material with ID ${id} not found`);
         }
         console.log('✅ Đã cập nhật vật liệu thành công:', updatedMaterial.name, 'cho user:', userId);
+        console.log('💰 Tiền nhập:', updatedMaterial.importCost, 'Giá bán:', updatedMaterial.price);
         return updatedMaterial;
     }
     async remove(id, userId) {

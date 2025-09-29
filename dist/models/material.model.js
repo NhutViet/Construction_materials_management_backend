@@ -19,6 +19,7 @@ let Material = class Material {
     unit;
     quantity;
     price;
+    importCost;
     description;
     supplier;
     isActive;
@@ -48,6 +49,10 @@ __decorate([
     (0, mongoose_1.Prop)({ required: true, min: 0 }),
     __metadata("design:type", Number)
 ], Material.prototype, "price", void 0);
+__decorate([
+    (0, mongoose_1.Prop)({ required: true, min: 0 }),
+    __metadata("design:type", Number)
+], Material.prototype, "importCost", void 0);
 __decorate([
     (0, mongoose_1.Prop)(),
     __metadata("design:type", String)
