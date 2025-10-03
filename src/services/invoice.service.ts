@@ -157,15 +157,21 @@ export class InvoiceService {
         }
 
         // Tự động lấy thông tin vật liệu từ database
+        const unitPrice = material.price || 0;
+        const totalPrice = item.quantity * unitPrice;
+        
         return {
           materialId: item.materialId,
           materialName: material.name,
           quantity: item.quantity,
-          unitPrice: material.price || 0, // Lấy giá từ database
+          unitPrice: unitPrice, // Giá hiện tại
           unit: material.unit || 'cái', // Lấy đơn vị từ database
-          totalPrice: item.quantity * (material.price || 0),
+          totalPrice: totalPrice, // Tổng giá hiện tại
           deliveredQuantity: 0, // Khởi tạo số lượng đã giao = 0
-          deliveryStatus: 'pending' // Khởi tạo trạng thái giao hàng = pending
+          deliveryStatus: 'pending', // Khởi tạo trạng thái giao hàng = pending
+          // Lưu thông tin giá ban đầu
+          originalUnitPrice: unitPrice,
+          originalTotalPrice: totalPrice
         };
       })
     );
@@ -207,6 +213,9 @@ export class InvoiceService {
       remainingAmount,
       createdBy: new Types.ObjectId(userId),
       customerId: new Types.ObjectId(userId), // Tạm thời gán cho user hiện tại
+      // Lưu thông tin giá ban đầu cho toàn bộ hóa đơn
+      originalTotalAmount: values.totalAmount,
+      adjustedTotalAmount: values.totalAmount
     });
 
     const savedInvoice = await invoice.save();
@@ -421,13 +430,31 @@ export class InvoiceService {
       await this.checkInventoryAvailability(invoice.items, userId);
       this.logger.log(`✅ Đã kiểm tra tồn kho - đủ hàng để giao toàn bộ hoá đơn`);
       
-      const updatedItems = invoice.items.map(item => ({
-        ...item,
-        deliveredQuantity: item.quantity, // Tự động fill deliveredQuantity = quantity
-        deliveryStatus: 'delivered' as const,
-        deliveredAt: new Date(),
-        deliveredBy: new Types.ObjectId(userId)
-      }));
+      const updatedItems = invoice.items.map(item => {
+        const currentDeliveredQuantity = item.deliveredQuantity || 0;
+        const remainingQuantity = item.quantity - currentDeliveredQuantity;
+        
+        // Tạo bản ghi giao hàng cho số lượng còn lại
+        const deliveryRecord = {
+          quantity: remainingQuantity,
+          unitPrice: item.unitPrice,
+          totalAmount: remainingQuantity * item.unitPrice,
+          deliveredAt: new Date(),
+          deliveredBy: new Types.ObjectId(userId),
+          notes: 'Tự động giao hàng khi chuyển sang trạng thái delivered'
+        };
+        
+        const currentDeliveryHistory = item.deliveryHistory || [];
+        
+        return {
+          ...item,
+          deliveredQuantity: item.quantity, // Tự động fill deliveredQuantity = quantity
+          deliveryStatus: 'delivered' as const,
+          deliveredAt: new Date(),
+          deliveredBy: new Types.ObjectId(userId),
+          deliveryHistory: [...currentDeliveryHistory, deliveryRecord]
+        };
+      });
 
       updateData.items = updatedItems;
       updateData.deliveryDate = new Date();
@@ -759,6 +786,20 @@ export class InvoiceService {
     );
     this.logger.log(`✅ Đã kiểm tra tồn kho - đủ hàng để giao ${updateDeliveryDto.deliveredQuantity} ${item.unit}`);
 
+    // Xác định giá tại thời điểm giao hàng
+    const deliveryUnitPrice = updateDeliveryDto.unitPrice || item.unitPrice;
+    const deliveryTotalAmount = updateDeliveryDto.deliveredQuantity * deliveryUnitPrice;
+
+    // Tạo bản ghi giao hàng mới
+    const newDeliveryRecord = {
+      quantity: updateDeliveryDto.deliveredQuantity,
+      unitPrice: deliveryUnitPrice,
+      totalAmount: deliveryTotalAmount,
+      deliveredAt: new Date(),
+      deliveredBy: new Types.ObjectId(userId),
+      notes: updateDeliveryDto.notes
+    };
+
     // Cập nhật thông tin giao hàng cho item
     const newDeliveredQuantity = currentDeliveredQuantity + updateDeliveryDto.deliveredQuantity;
     let newDeliveryStatus: 'pending' | 'partial' | 'delivered';
@@ -773,12 +814,15 @@ export class InvoiceService {
 
     // Cập nhật item trong mảng items
     const updatedItems = [...invoice.items];
+    const currentDeliveryHistory = updatedItems[itemIndex].deliveryHistory || [];
+    
     updatedItems[itemIndex] = {
       ...updatedItems[itemIndex],
       deliveredQuantity: newDeliveredQuantity,
       deliveryStatus: newDeliveryStatus,
       deliveredAt: new Date(),
-      deliveredBy: new Types.ObjectId(userId)
+      deliveredBy: new Types.ObjectId(userId),
+      deliveryHistory: [...currentDeliveryHistory, newDeliveryRecord]
     };
 
     // Kiểm tra trạng thái giao hàng tổng thể của hoá đơn
@@ -882,12 +926,27 @@ export class InvoiceService {
     for (const item of invoice.items) {
       const deliveredQuantity = item.deliveredQuantity || 0;
       const orderedQuantity = item.quantity;
-      const unitPrice = item.unitPrice;
       
-      // Tính tiền cho số lượng đã giao
-      const itemDeliveredAmount = deliveredQuantity * unitPrice;
+      // Tính tổng tiền đã giao dựa trên lịch sử giao hàng thực tế
+      let itemDeliveredAmount = 0;
+      let deliveryRecords: any[] = [];
+      
+      if (item.deliveryHistory && item.deliveryHistory.length > 0) {
+        // Tính dựa trên lịch sử giao hàng thực tế
+        itemDeliveredAmount = item.deliveryHistory.reduce((sum, record) => sum + record.totalAmount, 0);
+        deliveryRecords = item.deliveryHistory.map(record => ({
+          quantity: record.quantity,
+          unitPrice: record.unitPrice,
+          totalAmount: record.totalAmount,
+          deliveredAt: record.deliveredAt,
+          notes: record.notes
+        }));
+      } else {
+        // Fallback: tính dựa trên giá hiện tại (cho các hóa đơn cũ)
+        itemDeliveredAmount = deliveredQuantity * item.unitPrice;
+      }
+      
       deliveredAmount += itemDeliveredAmount;
-      
       totalDeliveredQuantity += deliveredQuantity;
       totalOrderedQuantity += orderedQuantity;
 
@@ -900,10 +959,12 @@ export class InvoiceService {
           orderedQuantity: orderedQuantity,
           deliveredQuantity: deliveredQuantity,
           remainingQuantity: orderedQuantity - deliveredQuantity,
-          unitPrice: unitPrice,
+          currentUnitPrice: item.unitPrice, // Giá hiện tại
+          originalUnitPrice: item.originalUnitPrice, // Giá ban đầu
           deliveredAmount: itemDeliveredAmount,
           deliveryStatus: item.deliveryStatus || 'pending',
-          deliveredAt: item.deliveredAt
+          deliveredAt: item.deliveredAt,
+          deliveryHistory: deliveryRecords // Lịch sử chi tiết các lần giao hàng
         });
       }
     }
@@ -913,7 +974,8 @@ export class InvoiceService {
       ? (totalDeliveredQuantity / totalOrderedQuantity) * 100 
       : 0;
 
-    // Tính tỷ lệ tiền đã giao so với tổng tiền hoá đơn
+    // Tính tỷ lệ tiền đã giao so với tổng tiền hoá đơn hiện tại
+    // Sử dụng totalAmount hiện tại để tính tỷ lệ chính xác
     const deliveredAmountPercentage = invoice.totalAmount > 0 
       ? (deliveredAmount / invoice.totalAmount) * 100 
       : 0;
@@ -922,14 +984,21 @@ export class InvoiceService {
       invoiceId: invoice._id,
       invoiceNumber: invoice.invoiceNumber,
       customerName: invoice.customerName,
-      totalOrderedAmount: invoice.totalAmount,
+      totalOrderedAmount: invoice.totalAmount, // Tổng tiền hiện tại
+      originalTotalAmount: invoice.originalTotalAmount || invoice.totalAmount, // Tổng tiền ban đầu để tham khảo
       deliveredAmount: Math.round(deliveredAmount * 100) / 100, // Làm tròn đến 2 chữ số thập phân
-      remainingAmount: Math.round((invoice.totalAmount - deliveredAmount) * 100) / 100,
+      remainingAmount: Math.round((invoice.totalAmount - deliveredAmount) * 100) / 100, // Số tiền còn lại dựa trên giá hiện tại
       totalOrderedQuantity,
       totalDeliveredQuantity,
       deliveryPercentage: Math.round(deliveryPercentage * 100) / 100,
       deliveredAmountPercentage: Math.round(deliveredAmountPercentage * 100) / 100,
       deliveredItems,
+      priceInfo: {
+        hasPriceAdjustment: invoice.originalTotalAmount !== undefined && invoice.originalTotalAmount !== invoice.totalAmount,
+        priceAdjustmentAmount: invoice.totalPriceAdjustmentAmount || 0,
+        priceAdjustmentReason: invoice.priceAdjustmentReason,
+        priceAdjustedAt: invoice.priceAdjustedAt
+      },
       summary: {
         totalItems: invoice.items.length,
         deliveredItems: deliveredItems.length,
@@ -942,7 +1011,7 @@ export class InvoiceService {
       }
     };
 
-    this.logger.log(`✅ Tổng tiền hàng đã giao: ${deliveredAmount} VNĐ (${deliveredAmountPercentage.toFixed(2)}% của tổng hoá đơn)`);
+    this.logger.log(`✅ Tổng tiền hàng đã giao: ${deliveredAmount} VNĐ (${deliveredAmountPercentage.toFixed(2)}% của tổng hoá đơn hiện tại: ${invoice.totalAmount} VNĐ) - Tính dựa trên lịch sử giao hàng thực tế`);
     
     return result;
   }

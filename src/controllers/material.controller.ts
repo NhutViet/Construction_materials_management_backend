@@ -13,6 +13,7 @@ import { MaterialService } from '../services/material.service';
 import { Material } from '../models/material.model';
 import { JwtAuthGuard } from '../guards/jwt-auth.guard';
 import { CurrentUser } from '../decorators/current-user.decorator';
+import { CreateMaterialDto, UpdateMaterialDto } from '../dto/material.dto';
 
 @Controller('materials')
 @UseGuards(JwtAuthGuard)
@@ -22,7 +23,7 @@ export class MaterialController {
   constructor(private readonly materialService: MaterialService) {}
 
   @Post()
-  create(@Body() createMaterialDto: Partial<Material>, @CurrentUser() user: any) {
+  create(@Body() createMaterialDto: CreateMaterialDto, @CurrentUser() user: any) {
     this.logger.log(`📝 POST /materials - Tạo vật liệu mới: ${createMaterialDto.name} cho user: ${user.id}`);
     return this.materialService.create(createMaterialDto, user.id);
   }
@@ -52,7 +53,11 @@ export class MaterialController {
   }
 
   @Patch(':id')
-  update(@Param('id') id: string, @Body() updateMaterialDto: Partial<Material>, @CurrentUser() user: any) {
+  update(
+    @Param('id') id: string, 
+    @Body() updateMaterialDto: UpdateMaterialDto, 
+    @CurrentUser() user: any
+  ) {
     this.logger.log(`🔄 PATCH /materials/${id} - Cập nhật vật liệu cho user: ${user.id}`);
     return this.materialService.update(id, updateMaterialDto, user.id);
   }

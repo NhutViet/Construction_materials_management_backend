@@ -197,6 +197,11 @@ export class UpdateItemDeliveryDto {
   deliveredQuantity: number; // Số lượng giao hàng
 
   @IsOptional()
+  @IsNumber()
+  @Min(0)
+  unitPrice?: number; // Giá tại thời điểm giao hàng (nếu không có sẽ dùng giá hiện tại)
+
+  @IsOptional()
   @IsString()
   notes?: string; // Ghi chú giao hàng
 }
