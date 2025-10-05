@@ -225,8 +225,10 @@ export class MaterialService {
             const originalUnitPrice = item.originalUnitPrice || item.unitPrice;
             const originalTotalPrice = item.originalTotalPrice || item.totalPrice;
             
-            // Chỉ cập nhật giá cho phần chưa giao hàng
-            const newTotalPrice = (deliveredQuantity * originalUnitPrice) + (remainingQuantity * newPrice);
+            // Tính tổng tiền mới: phần đã giao giữ nguyên giá cũ + phần chưa giao áp dụng giá mới
+            const deliveredAmount = deliveredQuantity * originalUnitPrice;
+            const remainingAmount = remainingQuantity * newPrice;
+            const newTotalPrice = deliveredAmount + remainingAmount;
             const priceAdjustmentAmount = newTotalPrice - originalTotalPrice;
             
             console.log(`📦 Cập nhật item ${item.materialName}:`);
@@ -256,8 +258,33 @@ export class MaterialService {
           return item;
         });
 
-        // Tính lại tổng tiền hóa đơn
-        const subtotal = updatedItems.reduce((sum: number, item: any) => sum + item.totalPrice, 0);
+        // Tính lại tổng tiền hóa đơn dựa trên giá trị thực tế đã giao và chưa giao
+        let totalDeliveredAmount = 0;
+        let totalRemainingAmount = 0;
+        
+        for (const item of updatedItems) {
+          const deliveredQuantity = item.deliveredQuantity || 0;
+          const remainingQuantity = item.quantity - deliveredQuantity;
+          
+          // Tính tổng tiền đã giao dựa trên lịch sử giao hàng thực tế
+          let itemDeliveredAmount = 0;
+          if (item.deliveryHistory && item.deliveryHistory.length > 0) {
+            itemDeliveredAmount = item.deliveryHistory.reduce((sum: number, record: any) => sum + record.totalAmount, 0);
+          } else {
+            itemDeliveredAmount = deliveredQuantity * (item.originalUnitPrice || item.unitPrice);
+          }
+          
+          // Tính tổng tiền cho phần chưa giao với giá hiện tại
+          const itemRemainingAmount = remainingQuantity * item.unitPrice;
+          
+          totalDeliveredAmount += itemDeliveredAmount;
+          totalRemainingAmount += itemRemainingAmount;
+          
+          // Cập nhật totalPrice cho item
+          item.totalPrice = itemDeliveredAmount + itemRemainingAmount;
+        }
+        
+        const subtotal = totalDeliveredAmount + totalRemainingAmount;
         const taxAmount = (subtotal * (invoice.taxRate || 0)) / 100;
         const discountAmount = (subtotal * (invoice.discountRate || 0)) / 100;
         const newTotalAmount = subtotal + taxAmount - discountAmount;

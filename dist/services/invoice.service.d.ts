@@ -51,7 +51,7 @@ export declare class InvoiceService {
             quantity: number;
             deliveredQuantity: number;
             remainingQuantity: number;
-            deliveryStatus: "pending" | "partial" | "delivered";
+            deliveryStatus: "pending" | "delivered" | "partial";
             deliveredAt: Date | undefined;
             unit: string;
         }[];
@@ -61,6 +61,7 @@ export declare class InvoiceService {
         invoiceNumber: string;
         customerName: string;
         totalOrderedAmount: number;
+        originalTotalAmount: number;
         deliveredAmount: number;
         remainingAmount: number;
         totalOrderedQuantity: number;
@@ -68,6 +69,12 @@ export declare class InvoiceService {
         deliveryPercentage: number;
         deliveredAmountPercentage: number;
         deliveredItems: any[];
+        priceInfo: {
+            hasPriceAdjustment: boolean;
+            priceAdjustmentAmount: number;
+            priceAdjustmentReason: string | undefined;
+            priceAdjustedAt: Date | undefined;
+        };
         summary: {
             totalItems: number;
             deliveredItems: number;
@@ -76,4 +83,5 @@ export declare class InvoiceService {
             fullyDeliveredItems: number;
         };
     }>;
+    recalculateInvoiceTotal(invoiceId: string, userId: string): Promise<Invoice>;
 }

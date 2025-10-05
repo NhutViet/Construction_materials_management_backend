@@ -836,10 +836,49 @@ export class InvoiceService {
       newInvoiceStatus = 'shipped';
     }
 
+    // Tính lại tổng tiền hoá đơn dựa trên giá trị thực tế đã giao và chưa giao
+    let totalDeliveredAmount = 0;
+    let totalRemainingAmount = 0;
+    
+    for (const item of updatedItems) {
+      const deliveredQuantity = item.deliveredQuantity || 0;
+      const remainingQuantity = item.quantity - deliveredQuantity;
+      
+      // Tính tổng tiền đã giao dựa trên lịch sử giao hàng thực tế
+      let itemDeliveredAmount = 0;
+      if (item.deliveryHistory && item.deliveryHistory.length > 0) {
+        itemDeliveredAmount = item.deliveryHistory.reduce((sum: number, record: any) => sum + record.totalAmount, 0);
+      } else {
+        itemDeliveredAmount = deliveredQuantity * (item.originalUnitPrice || item.unitPrice);
+      }
+      
+      // Tính tổng tiền cho phần chưa giao với giá hiện tại
+      const itemRemainingAmount = remainingQuantity * item.unitPrice;
+      
+      totalDeliveredAmount += itemDeliveredAmount;
+      totalRemainingAmount += itemRemainingAmount;
+      
+      // Cập nhật totalPrice cho item
+      item.totalPrice = itemDeliveredAmount + itemRemainingAmount;
+    }
+    
+    const newSubtotal = totalDeliveredAmount + totalRemainingAmount;
+    const taxAmount = (newSubtotal * (invoice.taxRate || 0)) / 100;
+    const discountAmount = (newSubtotal * (invoice.discountRate || 0)) / 100;
+    const newTotalAmount = newSubtotal + taxAmount - discountAmount;
+    
+    // Tính lại remainingAmount
+    const newRemainingAmount = newTotalAmount - invoice.paidAmount;
+
     // Cập nhật hoá đơn
     const updateData: any = {
       items: updatedItems,
-      status: newInvoiceStatus
+      status: newInvoiceStatus,
+      subtotal: newSubtotal,
+      taxAmount,
+      discountAmount,
+      totalAmount: newTotalAmount,
+      remainingAmount: newRemainingAmount
     };
 
     // Nếu tất cả items đã được giao, cập nhật deliveryDate
