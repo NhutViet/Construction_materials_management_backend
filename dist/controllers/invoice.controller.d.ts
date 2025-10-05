@@ -97,7 +97,7 @@ export declare class InvoiceController {
             quantity: number;
             deliveredQuantity: number;
             remainingQuantity: number;
-            deliveryStatus: "pending" | "partial" | "delivered";
+            deliveryStatus: "pending" | "delivered" | "partial";
             deliveredAt: Date | undefined;
             unit: string;
         }[];
@@ -107,6 +107,7 @@ export declare class InvoiceController {
         invoiceNumber: string;
         customerName: string;
         totalOrderedAmount: number;
+        originalTotalAmount: number;
         deliveredAmount: number;
         remainingAmount: number;
         totalOrderedQuantity: number;
@@ -114,6 +115,12 @@ export declare class InvoiceController {
         deliveryPercentage: number;
         deliveredAmountPercentage: number;
         deliveredItems: any[];
+        priceInfo: {
+            hasPriceAdjustment: boolean;
+            priceAdjustmentAmount: number;
+            priceAdjustmentReason: string | undefined;
+            priceAdjustedAt: Date | undefined;
+        };
         summary: {
             totalItems: number;
             deliveredItems: number;

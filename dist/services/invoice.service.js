@@ -118,15 +118,19 @@ let InvoiceService = InvoiceService_1 = class InvoiceService {
             if (!material) {
                 throw new common_1.NotFoundException(`Vật liệu với ID ${item.materialId} không tồn tại`);
             }
+            const unitPrice = material.price || 0;
+            const totalPrice = item.quantity * unitPrice;
             return {
                 materialId: item.materialId,
                 materialName: material.name,
                 quantity: item.quantity,
-                unitPrice: material.price || 0,
+                unitPrice: unitPrice,
                 unit: material.unit || 'cái',
-                totalPrice: item.quantity * (material.price || 0),
+                totalPrice: totalPrice,
                 deliveredQuantity: 0,
-                deliveryStatus: 'pending'
+                deliveryStatus: 'pending',
+                originalUnitPrice: unitPrice,
+                originalTotalPrice: totalPrice
             };
         }));
         const values = this.calculateInvoiceValues(updatedItems, createInvoiceDto.taxRate || 0, createInvoiceDto.discountRate || 0);
@@ -153,6 +157,8 @@ let InvoiceService = InvoiceService_1 = class InvoiceService {
             remainingAmount,
             createdBy: new mongoose_2.Types.ObjectId(userId),
             customerId: new mongoose_2.Types.ObjectId(userId),
+            originalTotalAmount: values.totalAmount,
+            adjustedTotalAmount: values.totalAmount
         });
         const savedInvoice = await invoice.save();
         this.logger.log(`Hoá đơn ${invoiceNumber} đã được tạo thành công`);
@@ -303,13 +309,27 @@ let InvoiceService = InvoiceService_1 = class InvoiceService {
             this.logger.log(`🚚 Tự động cập nhật deliveredQuantity cho tất cả items khi chuyển sang trạng thái delivered`);
             await this.checkInventoryAvailability(invoice.items, userId);
             this.logger.log(`✅ Đã kiểm tra tồn kho - đủ hàng để giao toàn bộ hoá đơn`);
-            const updatedItems = invoice.items.map(item => ({
-                ...item,
-                deliveredQuantity: item.quantity,
-                deliveryStatus: 'delivered',
-                deliveredAt: new Date(),
-                deliveredBy: new mongoose_2.Types.ObjectId(userId)
-            }));
+            const updatedItems = invoice.items.map(item => {
+                const currentDeliveredQuantity = item.deliveredQuantity || 0;
+                const remainingQuantity = item.quantity - currentDeliveredQuantity;
+                const deliveryRecord = {
+                    quantity: remainingQuantity,
+                    unitPrice: item.unitPrice,
+                    totalAmount: remainingQuantity * item.unitPrice,
+                    deliveredAt: new Date(),
+                    deliveredBy: new mongoose_2.Types.ObjectId(userId),
+                    notes: 'Tự động giao hàng khi chuyển sang trạng thái delivered'
+                };
+                const currentDeliveryHistory = item.deliveryHistory || [];
+                return {
+                    ...item,
+                    deliveredQuantity: item.quantity,
+                    deliveryStatus: 'delivered',
+                    deliveredAt: new Date(),
+                    deliveredBy: new mongoose_2.Types.ObjectId(userId),
+                    deliveryHistory: [...currentDeliveryHistory, deliveryRecord]
+                };
+            });
             updateData.items = updatedItems;
             updateData.deliveryDate = new Date();
             await this.updateMaterialInventory(invoice.items.map(item => ({ materialId: item.materialId, quantity: item.quantity })), 'decrease');
@@ -541,6 +561,16 @@ let InvoiceService = InvoiceService_1 = class InvoiceService {
         }
         await this.checkInventoryAvailability([{ materialId: item.materialId, quantity: updateDeliveryDto.deliveredQuantity }], userId);
         this.logger.log(`✅ Đã kiểm tra tồn kho - đủ hàng để giao ${updateDeliveryDto.deliveredQuantity} ${item.unit}`);
+        const deliveryUnitPrice = updateDeliveryDto.unitPrice || item.unitPrice;
+        const deliveryTotalAmount = updateDeliveryDto.deliveredQuantity * deliveryUnitPrice;
+        const newDeliveryRecord = {
+            quantity: updateDeliveryDto.deliveredQuantity,
+            unitPrice: deliveryUnitPrice,
+            totalAmount: deliveryTotalAmount,
+            deliveredAt: new Date(),
+            deliveredBy: new mongoose_2.Types.ObjectId(userId),
+            notes: updateDeliveryDto.notes
+        };
         const newDeliveredQuantity = currentDeliveredQuantity + updateDeliveryDto.deliveredQuantity;
         let newDeliveryStatus;
         if (newDeliveredQuantity >= item.quantity) {
@@ -553,12 +583,14 @@ let InvoiceService = InvoiceService_1 = class InvoiceService {
             newDeliveryStatus = 'pending';
         }
         const updatedItems = [...invoice.items];
+        const currentDeliveryHistory = updatedItems[itemIndex].deliveryHistory || [];
         updatedItems[itemIndex] = {
             ...updatedItems[itemIndex],
             deliveredQuantity: newDeliveredQuantity,
             deliveryStatus: newDeliveryStatus,
             deliveredAt: new Date(),
-            deliveredBy: new mongoose_2.Types.ObjectId(userId)
+            deliveredBy: new mongoose_2.Types.ObjectId(userId),
+            deliveryHistory: [...currentDeliveryHistory, newDeliveryRecord]
         };
         const allItemsDelivered = updatedItems.every(item => item.deliveryStatus === 'delivered');
         const someItemsDelivered = updatedItems.some(item => item.deliveryStatus === 'delivered' || item.deliveryStatus === 'partial');
@@ -634,8 +666,21 @@ let InvoiceService = InvoiceService_1 = class InvoiceService {
         for (const item of invoice.items) {
             const deliveredQuantity = item.deliveredQuantity || 0;
             const orderedQuantity = item.quantity;
-            const unitPrice = item.unitPrice;
-            const itemDeliveredAmount = deliveredQuantity * unitPrice;
+            let itemDeliveredAmount = 0;
+            let deliveryRecords = [];
+            if (item.deliveryHistory && item.deliveryHistory.length > 0) {
+                itemDeliveredAmount = item.deliveryHistory.reduce((sum, record) => sum + record.totalAmount, 0);
+                deliveryRecords = item.deliveryHistory.map(record => ({
+                    quantity: record.quantity,
+                    unitPrice: record.unitPrice,
+                    totalAmount: record.totalAmount,
+                    deliveredAt: record.deliveredAt,
+                    notes: record.notes
+                }));
+            }
+            else {
+                itemDeliveredAmount = deliveredQuantity * item.unitPrice;
+            }
             deliveredAmount += itemDeliveredAmount;
             totalDeliveredQuantity += deliveredQuantity;
             totalOrderedQuantity += orderedQuantity;
@@ -647,10 +692,12 @@ let InvoiceService = InvoiceService_1 = class InvoiceService {
                     orderedQuantity: orderedQuantity,
                     deliveredQuantity: deliveredQuantity,
                     remainingQuantity: orderedQuantity - deliveredQuantity,
-                    unitPrice: unitPrice,
+                    currentUnitPrice: item.unitPrice,
+                    originalUnitPrice: item.originalUnitPrice,
                     deliveredAmount: itemDeliveredAmount,
                     deliveryStatus: item.deliveryStatus || 'pending',
-                    deliveredAt: item.deliveredAt
+                    deliveredAt: item.deliveredAt,
+                    deliveryHistory: deliveryRecords
                 });
             }
         }
@@ -665,6 +712,7 @@ let InvoiceService = InvoiceService_1 = class InvoiceService {
             invoiceNumber: invoice.invoiceNumber,
             customerName: invoice.customerName,
             totalOrderedAmount: invoice.totalAmount,
+            originalTotalAmount: invoice.originalTotalAmount || invoice.totalAmount,
             deliveredAmount: Math.round(deliveredAmount * 100) / 100,
             remainingAmount: Math.round((invoice.totalAmount - deliveredAmount) * 100) / 100,
             totalOrderedQuantity,
@@ -672,6 +720,12 @@ let InvoiceService = InvoiceService_1 = class InvoiceService {
             deliveryPercentage: Math.round(deliveryPercentage * 100) / 100,
             deliveredAmountPercentage: Math.round(deliveredAmountPercentage * 100) / 100,
             deliveredItems,
+            priceInfo: {
+                hasPriceAdjustment: invoice.originalTotalAmount !== undefined && invoice.originalTotalAmount !== invoice.totalAmount,
+                priceAdjustmentAmount: invoice.totalPriceAdjustmentAmount || 0,
+                priceAdjustmentReason: invoice.priceAdjustmentReason,
+                priceAdjustedAt: invoice.priceAdjustedAt
+            },
             summary: {
                 totalItems: invoice.items.length,
                 deliveredItems: deliveredItems.length,
@@ -683,8 +737,69 @@ let InvoiceService = InvoiceService_1 = class InvoiceService {
                 fullyDeliveredItems: invoice.items.filter(item => (item.deliveredQuantity || 0) >= item.quantity).length
             }
         };
-        this.logger.log(`✅ Tổng tiền hàng đã giao: ${deliveredAmount} VNĐ (${deliveredAmountPercentage.toFixed(2)}% của tổng hoá đơn)`);
+        this.logger.log(`✅ Tổng tiền hàng đã giao: ${deliveredAmount} VNĐ (${deliveredAmountPercentage.toFixed(2)}% của tổng hoá đơn hiện tại: ${invoice.totalAmount} VNĐ) - Tính dựa trên lịch sử giao hàng thực tế`);
         return result;
+    }
+    async recalculateInvoiceTotal(invoiceId, userId) {
+        this.logger.log(`🔄 Tính toán lại tổng tiền hoá đơn ${invoiceId} cho user: ${userId}`);
+        const invoice = await this.invoiceModel
+            .findOne({ _id: invoiceId, isDeleted: false, createdBy: new mongoose_2.Types.ObjectId(userId) })
+            .exec();
+        if (!invoice) {
+            throw new common_1.ForbiddenException('Bạn không có quyền truy cập hoá đơn này');
+        }
+        let totalDeliveredAmount = 0;
+        let totalRemainingAmount = 0;
+        const updatedItems = [];
+        for (const item of invoice.items) {
+            const deliveredQuantity = item.deliveredQuantity || 0;
+            const remainingQuantity = item.quantity - deliveredQuantity;
+            let itemDeliveredAmount = 0;
+            if (item.deliveryHistory && item.deliveryHistory.length > 0) {
+                itemDeliveredAmount = item.deliveryHistory.reduce((sum, record) => sum + record.totalAmount, 0);
+            }
+            else {
+                itemDeliveredAmount = deliveredQuantity * (item.originalUnitPrice || item.unitPrice);
+            }
+            const itemRemainingAmount = remainingQuantity * item.unitPrice;
+            totalDeliveredAmount += itemDeliveredAmount;
+            totalRemainingAmount += itemRemainingAmount;
+            const newTotalPrice = itemDeliveredAmount + itemRemainingAmount;
+            updatedItems.push({
+                ...item,
+                totalPrice: newTotalPrice
+            });
+        }
+        const newSubtotal = totalDeliveredAmount + totalRemainingAmount;
+        const taxAmount = (newSubtotal * (invoice.taxRate || 0)) / 100;
+        const discountAmount = (newSubtotal * (invoice.discountRate || 0)) / 100;
+        const newTotalAmount = newSubtotal + taxAmount - discountAmount;
+        const newRemainingAmount = newTotalAmount - invoice.paidAmount;
+        this.logger.log(`📊 Tính toán lại tổng tiền hoá đơn:`);
+        this.logger.log(`  - Tổng tiền đã giao: ${totalDeliveredAmount} VNĐ`);
+        this.logger.log(`  - Tổng tiền chưa giao: ${totalRemainingAmount} VNĐ`);
+        this.logger.log(`  - Subtotal mới: ${newSubtotal} VNĐ`);
+        this.logger.log(`  - TotalAmount mới: ${newTotalAmount} VNĐ`);
+        this.logger.log(`  - RemainingAmount mới: ${newRemainingAmount} VNĐ`);
+        const updatedInvoice = await this.invoiceModel
+            .findByIdAndUpdate(invoiceId, {
+            items: updatedItems,
+            subtotal: newSubtotal,
+            taxAmount,
+            discountAmount,
+            totalAmount: newTotalAmount,
+            remainingAmount: newRemainingAmount,
+            updatedAt: new Date()
+        }, { new: true })
+            .populate('customerId', 'name email')
+            .populate('createdBy', 'name email')
+            .populate('approvedBy', 'name email')
+            .exec();
+        if (!updatedInvoice) {
+            throw new common_1.NotFoundException(`Không thể cập nhật hoá đơn với ID ${invoiceId}`);
+        }
+        this.logger.log(`✅ Đã tính toán lại tổng tiền hoá đơn ${invoiceId}: ${newTotalAmount} VNĐ`);
+        return updatedInvoice;
     }
 };
 exports.InvoiceService = InvoiceService;
