@@ -3,7 +3,7 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { Invoice } from '../models/invoice.model';
 import { Material } from '../models/material.model';
-import { CreateInvoiceDto, UpdateInvoiceDto, UpdateInvoiceStatusDto, UpdatePaymentStatusDto, InvoiceQueryDto, CreateInvoiceItemDto, PaymentDto, UpdateItemDeliveryDto } from '../dto/invoice.dto';
+import { CreateInvoiceDto, UpdateInvoiceDto, UpdateInvoiceStatusDto, UpdatePaymentStatusDto, InvoiceQueryDto, CreateInvoiceItemDto, PaymentDto, UpdateItemDeliveryDto, PublicInvoiceSearchDto } from '../dto/invoice.dto';
 import { PaymentMethod } from '../constants/payment.constants';
 
 @Injectable()
@@ -1053,5 +1053,74 @@ export class InvoiceService {
     this.logger.log(`✅ Tổng tiền hàng đã giao: ${deliveredAmount} VNĐ (${deliveredAmountPercentage.toFixed(2)}% của tổng hoá đơn hiện tại: ${invoice.totalAmount} VNĐ) - Tính dựa trên lịch sử giao hàng thực tế`);
     
     return result;
+  }
+
+  // Tìm kiếm hoá đơn công khai không cần đăng nhập
+  async searchPublic(searchDto: PublicInvoiceSearchDto): Promise<Invoice[]> {
+    this.logger.log(`🔍 Tìm kiếm hoá đơn công khai với thông tin: ${JSON.stringify(searchDto)}`);
+
+    // Validation: Phải có ít nhất một trong hai thông tin
+    if (!searchDto.customerPhone && !searchDto.invoiceNumber) {
+      throw new BadRequestException('Vui lòng cung cấp số điện thoại hoặc mã hoá đơn để tìm kiếm');
+    }
+
+    const filter: any = { 
+      isDeleted: false,
+      status: { $ne: 'cancelled' } // Không hiển thị hoá đơn đã hủy
+    };
+
+    // Tìm kiếm theo số điện thoại
+    if (searchDto.customerPhone) {
+      // Chuẩn hóa số điện thoại (loại bỏ khoảng trắng, dấu +, dấu -)
+      const normalizedPhone = searchDto.customerPhone.replace(/[\s\-\+]/g, '');
+      filter.customerPhone = { $regex: normalizedPhone, $options: 'i' };
+    }
+
+    // Tìm kiếm theo mã hoá đơn
+    if (searchDto.invoiceNumber) {
+      filter.invoiceNumber = { $regex: searchDto.invoiceNumber, $options: 'i' };
+    }
+
+    // Tìm kiếm theo tên khách hàng (nếu có)
+    if (searchDto.customerName) {
+      filter.customerName = { $regex: searchDto.customerName, $options: 'i' };
+    }
+
+    this.logger.log(`🔍 Filter tìm kiếm: ${JSON.stringify(filter)}`);
+
+    const invoices = await this.invoiceModel
+      .find(filter)
+      .populate('customerId', 'name email')
+      .populate('createdBy', 'name email')
+      .populate('approvedBy', 'name email')
+      .sort({ createdAt: -1 })
+      .limit(50) // Giới hạn 50 kết quả để tránh spam
+      .exec();
+
+    this.logger.log(`✅ Tìm thấy ${invoices.length} hoá đơn phù hợp`);
+
+    // Chỉ trả về thông tin cần thiết, không bao gồm thông tin nhạy cảm
+    return invoices.map(invoice => {
+      const invoiceObj = invoice.toObject() as any;
+      
+      // Loại bỏ thông tin nhạy cảm
+      delete invoiceObj.createdBy;
+      delete invoiceObj.approvedBy;
+      delete invoiceObj.priceAdjustedBy;
+      
+      // Chỉ hiển thị thông tin cơ bản về items
+      invoiceObj.items = invoiceObj.items.map((item: any) => ({
+        materialId: item.materialId,
+        materialName: item.materialName,
+        quantity: item.quantity,
+        unitPrice: item.unitPrice,
+        totalPrice: item.totalPrice,
+        unit: item.unit,
+        deliveryStatus: item.deliveryStatus || 'pending',
+        deliveredQuantity: item.deliveredQuantity || 0
+      }));
+
+      return invoiceObj;
+    });
   }
 }

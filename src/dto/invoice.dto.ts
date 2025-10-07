@@ -243,3 +243,17 @@ export class InvoiceQueryDto {
   @IsNumber()
   limit?: number;
 }
+
+export class PublicInvoiceSearchDto {
+  @IsOptional()
+  @IsString()
+  customerPhone?: string; // Số điện thoại khách hàng
+
+  @IsOptional()
+  @IsString()
+  invoiceNumber?: string; // Mã hoá đơn
+
+  @IsOptional()
+  @IsString()
+  customerName?: string; // Tên khách hàng (tùy chọn)
+}
