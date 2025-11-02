@@ -198,21 +198,34 @@ export class MaterialService {
     console.log(`🔄 Tìm và cập nhật các hóa đơn chưa hoàn thành có chứa sản phẩm ${materialId}`);
     
     // Tìm các hóa đơn chưa hoàn thành có chứa sản phẩm này
+    // Loại trừ các hóa đơn đã thanh toán đầy đủ (paymentStatus = 'paid')
     const affectedInvoices = await this.materialModel.db.model('Invoice')
       .find({
         'items.materialId': materialId,
         'items.deliveryStatus': { $in: ['pending', 'partial'] },
         isDeleted: false,
-        createdBy: new Types.ObjectId(userId)
+        createdBy: new Types.ObjectId(userId),
+        paymentStatus: { $ne: 'paid' } // Không cập nhật giá cho hóa đơn đã thanh toán
       })
       .exec();
 
-    console.log(`📋 Tìm thấy ${affectedInvoices.length} hóa đơn chưa hoàn thành cần cập nhật`);
+    console.log(`📋 Tìm thấy ${affectedInvoices.length} hóa đơn chưa hoàn thành và chưa thanh toán cần cập nhật`);
 
     const updatedInvoices: any[] = [];
+    const skippedInvoices: any[] = [];
 
     for (const invoice of affectedInvoices) {
       try {
+        // Kiểm tra lại trạng thái thanh toán để đảm bảo an toàn
+        if (invoice.paymentStatus === 'paid') {
+          console.log(`⏭️ Bỏ qua hóa đơn ${invoice.invoiceNumber} - đã thanh toán đầy đủ`);
+          skippedInvoices.push({
+            invoiceId: invoice._id,
+            invoiceNumber: invoice.invoiceNumber,
+            reason: 'Hóa đơn đã thanh toán đầy đủ, không thể thay đổi giá'
+          });
+          continue;
+        }
         // Cập nhật giá cho các items chưa giao hàng
         const updatedItems = invoice.items.map((item: any) => {
           if (item.materialId.toString() === materialId && 
@@ -348,6 +361,9 @@ export class MaterialService {
       }
     }
 
+    if (skippedInvoices.length > 0) {
+      console.log(`⏭️ Đã bỏ qua ${skippedInvoices.length} hóa đơn đã thanh toán`);
+    }
     console.log(`✅ Hoàn thành cập nhật ${updatedInvoices.length} hóa đơn`);
     return updatedInvoices;
   }
