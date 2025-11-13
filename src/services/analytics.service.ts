@@ -128,7 +128,7 @@ export class AnalyticsService {
 
       // Phân tích nợ chi tiết
       this.invoiceModel.aggregate([
-        { $match: { ...filter, paymentStatus: { $in: ['unpaid', 'partial'] } } },
+        { $match: { ...filter, status: { $ne: 'cancelled' }, paymentStatus: { $in: ['unpaid', 'partial'] } } },
         {
           $group: {
             _id: null,
@@ -167,6 +167,7 @@ export class AnalyticsService {
         {
           $match: {
             ...filter,
+            status: { $ne: 'cancelled' },
             paymentStatus: { $in: ['unpaid', 'partial'] },
             createdAt: { $lt: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) }
           }
@@ -196,7 +197,7 @@ export class AnalyticsService {
 
       // Nợ theo khách hàng
       this.invoiceModel.aggregate([
-        { $match: { ...filter, paymentStatus: { $in: ['unpaid', 'partial'] } } },
+        { $match: { ...filter, status: { $ne: 'cancelled' }, paymentStatus: { $in: ['unpaid', 'partial'] } } },
         {
           $group: {
             _id: {
@@ -279,7 +280,7 @@ export class AnalyticsService {
     ] = await Promise.all([
       // Tổng quan nợ
       this.invoiceModel.aggregate([
-        { $match: { ...filter, paymentStatus: { $in: ['unpaid', 'partial'] } } },
+        { $match: { ...filter, status: { $ne: 'cancelled' }, paymentStatus: { $in: ['unpaid', 'partial'] } } },
         {
           $group: {
             _id: null,
@@ -300,7 +301,7 @@ export class AnalyticsService {
 
       // Nợ theo khách hàng
       this.invoiceModel.aggregate([
-        { $match: { ...filter, paymentStatus: { $in: ['unpaid', 'partial'] } } },
+        { $match: { ...filter, status: { $ne: 'cancelled' }, paymentStatus: { $in: ['unpaid', 'partial'] } } },
         {
           $group: {
             _id: {
@@ -328,7 +329,7 @@ export class AnalyticsService {
 
       // Nợ theo trạng thái
       this.invoiceModel.aggregate([
-        { $match: { ...filter, paymentStatus: { $in: ['unpaid', 'partial'] } } },
+        { $match: { ...filter, status: { $ne: 'cancelled' }, paymentStatus: { $in: ['unpaid', 'partial'] } } },
         {
           $group: {
             _id: '$paymentStatus',
@@ -341,7 +342,7 @@ export class AnalyticsService {
 
       // Nợ theo khoảng thời gian
       this.invoiceModel.aggregate([
-        { $match: { ...filter, paymentStatus: { $in: ['unpaid', 'partial'] } } },
+        { $match: { ...filter, status: { $ne: 'cancelled' }, paymentStatus: { $in: ['unpaid', 'partial'] } } },
         {
           $group: {
             _id: {
@@ -358,7 +359,7 @@ export class AnalyticsService {
 
       // Top khách hàng nợ nhiều nhất
       this.invoiceModel.aggregate([
-        { $match: { ...filter, paymentStatus: { $in: ['unpaid', 'partial'] } } },
+        { $match: { ...filter, status: { $ne: 'cancelled' }, paymentStatus: { $in: ['unpaid', 'partial'] } } },
         {
           $group: {
             _id: {
@@ -554,6 +555,7 @@ export class AnalyticsService {
           $match: {
             createdBy: new Types.ObjectId(userId),
             isDeleted: false,
+            status: { $ne: 'cancelled' },
             paymentStatus: { $in: ['unpaid', 'partial'] },
             createdAt: { $lt: cutoffDate }
           }
@@ -576,6 +578,7 @@ export class AnalyticsService {
           $match: {
             createdBy: new Types.ObjectId(userId),
             isDeleted: false,
+            status: { $ne: 'cancelled' },
             paymentStatus: { $in: ['unpaid', 'partial'] },
             createdAt: { $lt: cutoffDate }
           }
@@ -604,6 +607,7 @@ export class AnalyticsService {
           $match: {
             createdBy: new Types.ObjectId(userId),
             isDeleted: false,
+            status: { $ne: 'cancelled' },
             paymentStatus: { $in: ['unpaid', 'partial'] },
             createdAt: { $lt: cutoffDate }
           }
@@ -636,6 +640,7 @@ export class AnalyticsService {
       this.invoiceModel.find({
         createdBy: new Types.ObjectId(userId),
         isDeleted: false,
+        status: { $ne: 'cancelled' },
         paymentStatus: { $in: ['unpaid', 'partial'] },
         createdAt: { $lt: new Date(Date.now() - 90 * 24 * 60 * 60 * 1000) }
       })
@@ -1366,22 +1371,94 @@ export class AnalyticsService {
 
     if (startDate || endDate) {
       filter.createdAt = {};
-      if (startDate) filter.createdAt.$gte = new Date(startDate);
-      if (endDate) filter.createdAt.$lte = new Date(endDate);
+      if (startDate) {
+        // Set start of day
+        const start = new Date(startDate);
+        start.setHours(0, 0, 0, 0);
+        filter.createdAt.$gte = start;
+      }
+      if (endDate) {
+        // Set end of day to include the entire day
+        const end = new Date(endDate);
+        end.setHours(23, 59, 59, 999);
+        filter.createdAt.$lte = end;
+      }
     }
 
     return filter;
   }
 
   private async getRevenueGrowth(userId: string, startDate?: string, endDate?: string) {
+    const currentFilter = this.buildDateFilter(userId, startDate, endDate);
+    const currentFilterWithStatus = { ...currentFilter, status: { $ne: 'cancelled' } };
+    
     const currentPeriod = await this.invoiceModel.aggregate([
-      { $match: this.buildDateFilter(userId, startDate, endDate) },
+      { $match: currentFilterWithStatus },
       { $group: { _id: null, total: { $sum: '$totalAmount' } } }
     ]);
 
-    // So sánh với kỳ trước (giả sử cùng khoảng thời gian)
+    // Tính toán kỳ trước với cùng khoảng thời gian (nếu có date range)
+    let previousFilter: any = {};
+    if (startDate && endDate) {
+      const start = new Date(startDate);
+      const end = new Date(endDate);
+      const duration = end.getTime() - start.getTime();
+      
+      // Tính kỳ trước với cùng độ dài thời gian
+      const previousEnd = new Date(start.getTime() - 1); // 1ms trước start date
+      const previousStart = new Date(previousEnd.getTime() - duration);
+      
+      previousStart.setHours(0, 0, 0, 0);
+      previousEnd.setHours(23, 59, 59, 999);
+      
+      previousFilter = {
+        createdBy: new Types.ObjectId(userId),
+        isDeleted: false,
+        status: { $ne: 'cancelled' },
+        createdAt: {
+          $gte: previousStart,
+          $lte: previousEnd
+        }
+      };
+    } else if (startDate) {
+      // Nếu chỉ có startDate, so sánh với khoảng trước đó cùng độ dài (mặc định 30 ngày)
+      const start = new Date(startDate);
+      const duration = 30 * 24 * 60 * 60 * 1000; // 30 ngày
+      const previousEnd = new Date(start.getTime() - 1);
+      const previousStart = new Date(previousEnd.getTime() - duration);
+      
+      previousStart.setHours(0, 0, 0, 0);
+      previousEnd.setHours(23, 59, 59, 999);
+      
+      previousFilter = {
+        createdBy: new Types.ObjectId(userId),
+        isDeleted: false,
+        status: { $ne: 'cancelled' },
+        createdAt: {
+          $gte: previousStart,
+          $lte: previousEnd
+        }
+      };
+    } else {
+      // Không có date range, so sánh tháng hiện tại vs tháng trước
+      const now = new Date();
+      const currentMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+      const lastMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+      const lastMonthEnd = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59, 999);
+      
+      previousFilter = {
+        createdBy: new Types.ObjectId(userId),
+        isDeleted: false,
+        status: { $ne: 'cancelled' },
+        createdAt: {
+          $gte: lastMonthStart,
+          $lte: lastMonthEnd
+        }
+      };
+    }
+
     const previousPeriod = await this.invoiceModel.aggregate([
-      { $match: this.buildDateFilter(userId, startDate, endDate) },
+      { $match: previousFilter },
       { $group: { _id: null, total: { $sum: '$totalAmount' } } }
     ]);
 
@@ -1392,7 +1469,7 @@ export class AnalyticsService {
     return {
       current,
       previous,
-      growthRate,
+      growthRate: Math.round(growthRate * 100) / 100,
       growthAmount: current - previous
     };
   }
@@ -1501,7 +1578,7 @@ export class AnalyticsService {
     const filter = this.buildDateFilter(userId, startDate, endDate);
     
     const customers = await this.invoiceModel.aggregate([
-      { $match: filter },
+      { $match: { ...filter, status: { $ne: 'cancelled' } } },
       {
         $group: {
           _id: '$customerId',
@@ -1689,8 +1766,9 @@ export class AnalyticsService {
   }
 
   private async getDailyTrends(userId: string, startDate?: string, endDate?: string) {
+    const filter = this.buildDateFilter(userId, startDate, endDate);
     return this.invoiceModel.aggregate([
-      { $match: this.buildDateFilter(userId, startDate, endDate) },
+      { $match: { ...filter, status: { $ne: 'cancelled' } } },
       {
         $group: {
           _id: {
@@ -1707,8 +1785,9 @@ export class AnalyticsService {
   }
 
   private async getWeeklyTrends(userId: string, startDate?: string, endDate?: string) {
+    const filter = this.buildDateFilter(userId, startDate, endDate);
     return this.invoiceModel.aggregate([
-      { $match: this.buildDateFilter(userId, startDate, endDate) },
+      { $match: { ...filter, status: { $ne: 'cancelled' } } },
       {
         $group: {
           _id: {
@@ -1724,8 +1803,9 @@ export class AnalyticsService {
   }
 
   private async getMonthlyTrends(userId: string, startDate?: string, endDate?: string) {
+    const filter = this.buildDateFilter(userId, startDate, endDate);
     return this.invoiceModel.aggregate([
-      { $match: this.buildDateFilter(userId, startDate, endDate) },
+      { $match: { ...filter, status: { $ne: 'cancelled' } } },
       {
         $group: {
           _id: {
@@ -1898,6 +1978,8 @@ export class AnalyticsService {
       }).limit(5),
       this.invoiceModel.find({
         createdBy: new Types.ObjectId(userId),
+        isDeleted: false,
+        status: { $ne: 'cancelled' },
         paymentStatus: { $in: ['unpaid', 'partial'] },
         createdAt: { $lt: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) }
       }).limit(5),
@@ -1918,7 +2000,7 @@ export class AnalyticsService {
 
   private async getRegionGrowth(userId: string, startDate?: string, endDate?: string) {
     const baseFilter = this.buildDateFilter(userId, startDate, endDate);
-    const regionFilter: any = {
+    const currentRegionFilter: any = {
       createdBy: baseFilter.createdBy,
       isDeleted: baseFilter.isDeleted,
       status: { $ne: 'cancelled' },
@@ -1926,11 +2008,11 @@ export class AnalyticsService {
     };
     
     if (baseFilter.createdAt) {
-      regionFilter.createdAt = baseFilter.createdAt;
+      currentRegionFilter.createdAt = baseFilter.createdAt;
     }
 
     const currentPeriod = await this.invoiceModel.aggregate([
-      { $match: regionFilter },
+      { $match: currentRegionFilter },
       {
         $group: {
           _id: { $toUpper: { $substr: ['$customerAddress', 0, 50] } },
@@ -1948,9 +2030,57 @@ export class AnalyticsService {
       }
     ]);
 
-    // So sánh với kỳ trước (giả sử cùng khoảng thời gian)
+    // Tính toán kỳ trước với cùng khoảng thời gian
+    let previousRegionFilter: any = {
+      createdBy: baseFilter.createdBy,
+      isDeleted: baseFilter.isDeleted,
+      status: { $ne: 'cancelled' },
+      customerAddress: { $exists: true, $ne: '' }
+    };
+
+    if (startDate && endDate) {
+      const start = new Date(startDate);
+      const end = new Date(endDate);
+      const duration = end.getTime() - start.getTime();
+      
+      // Tính kỳ trước với cùng độ dài thời gian
+      const previousEnd = new Date(start.getTime() - 1);
+      const previousStart = new Date(previousEnd.getTime() - duration);
+      
+      previousStart.setHours(0, 0, 0, 0);
+      previousEnd.setHours(23, 59, 59, 999);
+      
+      previousRegionFilter.createdAt = {
+        $gte: previousStart,
+        $lte: previousEnd
+      };
+    } else if (startDate) {
+      const start = new Date(startDate);
+      const duration = 30 * 24 * 60 * 60 * 1000; // 30 ngày
+      const previousEnd = new Date(start.getTime() - 1);
+      const previousStart = new Date(previousEnd.getTime() - duration);
+      
+      previousStart.setHours(0, 0, 0, 0);
+      previousEnd.setHours(23, 59, 59, 999);
+      
+      previousRegionFilter.createdAt = {
+        $gte: previousStart,
+        $lte: previousEnd
+      };
+    } else {
+      // Không có date range, so sánh tháng hiện tại vs tháng trước
+      const now = new Date();
+      const lastMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+      const lastMonthEnd = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59, 999);
+      
+      previousRegionFilter.createdAt = {
+        $gte: lastMonthStart,
+        $lte: lastMonthEnd
+      };
+    }
+
     const previousPeriod = await this.invoiceModel.aggregate([
-      { $match: regionFilter },
+      { $match: previousRegionFilter },
       {
         $group: {
           _id: { $toUpper: { $substr: ['$customerAddress', 0, 50] } },
@@ -1997,7 +2127,7 @@ export class AnalyticsService {
     const filter = this.buildDateFilter(userId, startDate, endDate);
     
     return this.invoiceModel.aggregate([
-      { $match: { ...filter, paymentStatus: { $in: ['unpaid', 'partial'] } } },
+      { $match: { ...filter, status: { $ne: 'cancelled' }, paymentStatus: { $in: ['unpaid', 'partial'] } } },
       {
         $addFields: {
           daysSinceCreated: {
